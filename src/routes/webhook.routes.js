@@ -1,44 +1,90 @@
-import { Router } from "express";
-import { sendEmail } from "./sendEmail.js";
-import { Job } from "../../models/Job.js";
+import { Router } from "express"
+import { sendEmail } from "./sendEmail.js"
+import { Job } from "../../models/Job.js"
+import { Order } from "../../models/Order.js"
+import { env } from "../../config/env.js"
 
-const router = Router();
+const router = Router()
 
 router.post("/phonepe/webhook", async (req, res) => {
   try {
-    const data = req.body;
+    const data = req.body
 
-    // Only handle payment success
-    if (data.event === "checkout.order.completed") {
+    console.log("🔥 Webhook received:", data)
 
-      const orderId = data.data.merchantOrderId;
+    // =========================
+    // 1. SECURITY CHECK (IMPORTANT)
+    // =========================
+    const secret =
+      req.headers["x-verify-token"] ||
+      req.headers["authorization"]
 
-      // Find job linked with this payment/order
-      const job = await Job.findOne({ orderId });
-
-      if (job && job.postedByEmail) {
-        await sendEmail(
-          job.postedByEmail,
-          "Payment Successful!",
-          `
-            <h2>Hi, Your job offer is successful!</h2>
-            <p>Job Title: ${job.title}</p>
-            <p>Amount Paid: ₹${job.amount}</p>
-            <p>District: ${job.district}</p>
-            <br/>
-            <p>Thank you for using our service.</p>
-          `
-        );
-      }
-
-      console.log("✔ Email Triggered from webhook");
+    if (!secret || secret !== env.webhookSecret) {
+      return res.status(401).json({ success: false, message: "Unauthorized" })
     }
 
-    res.status(200).json({ success: true });
-  } catch (e) {
-    console.error("❌ Webhook Handling Error:", e);
-    res.status(500).json({ success: false });
-  }
-});
+    // =========================
+    // 2. EXTRACT ORDER ID
+    // =========================
+    const merchantOrderId =
+      data?.merchantOrderId ||
+      data?.data?.merchantOrderId
 
-export default router;
+    const state =
+      data?.state ||
+      data?.data?.state
+
+    if (!merchantOrderId) {
+      return res.status(400).json({ success: false, message: "No order id" })
+    }
+
+    // =========================
+    // 3. UPDATE ORDER
+    // =========================
+    await Order.findOneAndUpdate(
+      { merchantOrderId },
+      {
+        status: state,
+        lastWebhook: data,
+        updatedAt: new Date()
+      }
+    )
+
+    // =========================
+    // 4. SUCCESS ONLY
+    // =========================
+    if (state === "COMPLETED") {
+
+      const order = await Order.findOne({ merchantOrderId })
+
+      if (order?.jobId) {
+        const job = await Job.findById(order.jobId)
+
+        if (job?.postedByEmail) {
+          await sendEmail(
+            job.postedByEmail,
+            "Payment Successful!",
+            `
+              <h2>Payment Received 🎉</h2>
+              <p><b>Job:</b> ${job.title}</p>
+              <p><b>Amount:</b> ₹${order.amount / 100}</p>
+              <p><b>Applicant:</b> ${order.customerName}</p>
+              <p><b>Phone:</b> ${order.mobileNumber}</p>
+              <p><b>Order ID:</b> ${merchantOrderId}</p>
+            `
+          )
+        }
+      }
+
+      console.log("✔ Payment Success Email Sent")
+    }
+
+    return res.status(200).json({ success: true })
+
+  } catch (e) {
+    console.error("❌ Webhook Error:", e)
+    return res.status(500).json({ success: false })
+  }
+})
+
+export default router

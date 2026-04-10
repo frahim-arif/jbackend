@@ -149,6 +149,7 @@ import { sendEmail } from '../utils/sendEmail.js'
 
 export function makeOrderController(client) {
   return {
+
     // ============================================================
     // CREATE ORDER
     // ============================================================
@@ -159,7 +160,10 @@ export function makeOrderController(client) {
         // ---------------- Validation ----------------
         if (!amount || typeof amount !== 'number' || amount <= 0)
           return res.status(400).send('Amount must be a positive number in paise')
-        if (!customerName?.trim()) return res.status(400).send('Customer name required')
+
+        if (!customerName?.trim())
+          return res.status(400).send('Customer name required')
+
         if (!/^\d{10}$/.test(mobileNumber))
           return res.status(400).send('Valid 10-digit mobile required')
 
@@ -183,8 +187,9 @@ export function makeOrderController(client) {
           jobId
         })
 
-        // ---------------- PhonePe Request ----------------
-        const statusCallback = `http://localhost:${env.port}/check-status?merchantOrderId=${merchantOrderId}`
+        // ---------------- FIXED: PhonePe callback URL ----------------
+        const statusCallback = `${env.frontendUrl}/check-status?merchantOrderId=${merchantOrderId}`
+
         const request = StandardCheckoutPayRequest
           .builder()
           .merchantOrderId(merchantOrderId)
@@ -198,11 +203,13 @@ export function makeOrderController(client) {
           checkoutPageUrl: response.redirectUrl,
           merchantOrderId
         })
+
       } catch (e) {
         console.error('Error creating order:', e)
         return res.status(500).send('Error creating order')
       }
     },
+
 
     // ============================================================
     // CHECK ORDER STATUS
@@ -210,22 +217,28 @@ export function makeOrderController(client) {
     async checkStatus(req, res) {
       try {
         const { merchantOrderId } = req.query
-        if (!merchantOrderId) return res.status(400).send('MerchantOrderId required')
+        if (!merchantOrderId)
+          return res.status(400).send('MerchantOrderId required')
 
         const response = await client.getOrderStatus(merchantOrderId)
         const status = response.state
 
         const order = await Order.findOneAndUpdate(
           { merchantOrderId },
-          { status, updatedAt: new Date(), lastWebhook: response },
+          {
+            status,
+            updatedAt: new Date(),
+            lastWebhook: response
+          },
           { new: true }
         )
 
-        // ---------------- Create Application after Payment ----------------
+        // ---------------- CREATE APPLICATION ----------------
         if (status === 'COMPLETED') {
           const existing = await Application.findOne({ merchantOrderId })
-          if (!existing) {
-            let job = order.jobId ? await Job.findById(order.jobId) : null
+
+          if (!existing && order) {
+            const job = order.jobId ? await Job.findById(order.jobId) : null
 
             await Application.create({
               jobId: order.jobId || '',
@@ -238,7 +251,7 @@ export function makeOrderController(client) {
               amount: order.amount
             })
 
-            // Send Email to Job Owner
+            // ---------------- EMAIL ----------------
             if (job?.postedByEmail) {
               await sendEmail({
                 to: job.postedByEmail,
@@ -256,19 +269,21 @@ export function makeOrderController(client) {
           }
         }
 
-        // ---------------- Redirect to frontend ----------------
+        // ---------------- REDIRECT ----------------
         const successUrl = `${env.frontendUrl}/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
         const failureUrl = `${env.frontendUrl}/failure?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
 
         return res.redirect(status === 'COMPLETED' ? successUrl : failureUrl)
+
       } catch (e) {
         console.error('Error checking status:', e)
         return res.status(500).send('Error checking status')
       }
     },
 
+
     // ============================================================
-    // GET SINGLE ORDER
+    // GET ORDER
     // ============================================================
     async getOrder(req, res) {
       try {
@@ -281,8 +296,9 @@ export function makeOrderController(client) {
       }
     },
 
+
     // ============================================================
-    // LIST ALL ORDERS
+    // LIST ORDERS
     // ============================================================
     async listOrders(req, res) {
       try {
@@ -294,17 +310,38 @@ export function makeOrderController(client) {
       }
     },
 
+
     // ============================================================
-    // PHONEPE WEBHOOK
+    // WEBHOOK (SECURE)
     // ============================================================
     async phonepeWebhook(req, res) {
       try {
-        console.log("Webhook Received:", req.body)
-        res.status(200).send("OK")
+        const secret =
+          req.headers['x-verify-token'] ||
+          req.headers['authorization']
+
+        if (!secret || secret !== env.webhookSecret) {
+          return res.status(401).send("Unauthorized")
+        }
+
+        console.log("Webhook Verified:", req.body)
+
+        const { merchantOrderId, state } = req.body || {}
+
+        if (merchantOrderId && state) {
+          await Order.findOneAndUpdate(
+            { merchantOrderId },
+            { status: state, updatedAt: new Date(), lastWebhook: req.body }
+          )
+        }
+
+        return res.status(200).send("OK")
+
       } catch (e) {
         console.error("Webhook error:", e)
-        res.status(500).send("Error")
+        return res.status(500).send("Error")
       }
     }
+
   }
 }
