@@ -36,6 +36,8 @@ const orderSchema = new mongoose.Schema({
   lastWebhook: { type: Object },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
-}, { versionKey: false })
+}, { versionKey: false,
+  timestamps: true
+ })
 
 export const Order = mongoose.model('Order', orderSchema)
