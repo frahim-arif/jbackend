@@ -188,8 +188,8 @@ export function makeOrderController(client) {
         })
 
         // ---------------- FIXED: PhonePe callback URL ----------------
-        const statusCallback = `${env.frontendUrl}/check-status?merchantOrderId=${merchantOrderId}`
-
+const statusCallback =
+  `https://jbackend-h963.onrender.com/check-status?merchantOrderId=${merchantOrderId}`
         const request = StandardCheckoutPayRequest
           .builder()
           .merchantOrderId(merchantOrderId)
