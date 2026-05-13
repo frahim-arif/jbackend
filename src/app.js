@@ -7,6 +7,7 @@ import { makeOrderController } from './controllers/orderController.js'
 import { createOrderRouter } from './routes/orderRoutes.js'
 import { createJobRouter } from './routes/jobRoutes.js'
 import { createSitemapRouter } from './routes/sitemap.js';
+import webhookRoutes from './routes/payment/webhook.js'
 
 export async function createApp() {
   assertEnv()
@@ -20,6 +21,9 @@ export async function createApp() {
   const client = createPhonePeClient()
   const controller = makeOrderController(client)
   app.use('/', createOrderRouter(controller))
+
+  // Webhook Routes
+  app.use('/', webhookRoutes)
 
   // Job Routes (GET, POST, DELETE)
   app.use('/', createJobRouter())
