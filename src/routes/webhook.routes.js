@@ -1,8 +1,8 @@
 import { Router } from "express"
-import { sendEmail } from "./sendEmail.js"
-import { Job } from "../../models/Job.js"
-import { Order } from "../../models/Order.js"
-import { env } from "../../config/env.js"
+import { sendEmail } from "../utils/sendEmail.js"
+import { Job } from "../models/Job.js"
+import { Order } from "../models/Order.js"
+import { env } from "../config/env.js"
 
 const router = Router()
 
