@@ -15,13 +15,13 @@ router.post("/phonepe/webhook", async (req, res) => {
     // =========================
     // 1. SECURITY CHECK (IMPORTANT)
     // =========================
-    const secret =
-      req.headers["x-verify-token"] ||
-      req.headers["authorization"]
+    // const secret =
+    //   req.headers["x-verify-token"] ||
+    //   req.headers["authorization"]
 
-    if (!secret || secret !== env.webhookSecret) {
-      return res.status(401).json({ success: false, message: "Unauthorized" })
-    }
+    // if (!secret || secret !== env.webhookSecret) {
+    //   return res.status(401).json({ success: false, message: "Unauthorized" })
+    // }
 
     // =========================
     // 2. EXTRACT ORDER ID
