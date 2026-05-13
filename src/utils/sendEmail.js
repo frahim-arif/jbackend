@@ -5,25 +5,16 @@ export async function sendEmail({ to, subject, html }) {
 
   console.log("EMAIL FUNCTION CALLED");
 
-  console.log(env.emailUser);
-  console.log(env.emailPassApp ? "PASS FOUND" : "NO PASS");
-
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    service: "gmail",
     auth: {
       user: env.emailUser,
       pass: env.emailPassApp,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
-
-  try {
-    await transporter.verify();
-    console.log("SMTP READY");
-  } catch (err) {
-    console.error("SMTP ERROR", err);
-  }
 
   const info = await transporter.sendMail({
     from: `"JobHir" <${env.emailUser}>`,
