@@ -1,15 +1,29 @@
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import nodemailer from "nodemailer";
+import { env } from "../config/env.js";
 
 export async function sendEmail({ to, subject, html }) {
-  const result = await resend.emails.send({
-    from: "JobHir <onboarding@resend.dev>",
+
+  console.log("EMAIL FUNCTION CALLED");
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: env.emailUser,
+      pass: env.emailPassApp,
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+  });
+
+  const info = await transporter.sendMail({
+    from: `"JobHir" <${env.emailUser}>`,
     to,
     subject,
     html,
   });
 
-  console.log("EMAIL SENT", result);
-  return result;
+  console.log("EMAIL SENT", info.messageId);
+
+  return info;
 }
