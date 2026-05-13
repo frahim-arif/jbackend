@@ -7,7 +7,8 @@ import { makeOrderController } from './controllers/orderController.js'
 import { createOrderRouter } from './routes/orderRoutes.js'
 import { createJobRouter } from './routes/jobRoutes.js'
 import { createSitemapRouter } from './routes/sitemap.js';
-import webhookRoutes from './routes/payment/webhookRoutes.js'
+import webhookRoutes from './routes/webhook.routes.js'
+
 
 export async function createApp() {
   assertEnv()
