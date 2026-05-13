@@ -61,18 +61,18 @@ router.post("/phonepe/webhook", async (req, res) => {
         const job = await Job.findById(order.jobId)
 
         if (job?.postedByEmail) {
-          await sendEmail(
-            job.postedByEmail,
-            "Payment Successful!",
-            `
-              <h2>Payment Received 🎉</h2>
-              <p><b>Job:</b> ${job.title}</p>
-              <p><b>Amount:</b> ₹${order.amount / 100}</p>
-              <p><b>Applicant:</b> ${order.customerName}</p>
-              <p><b>Phone:</b> ${order.mobileNumber}</p>
-              <p><b>Order ID:</b> ${merchantOrderId}</p>
-            `
-          )
+          await sendEmail({
+            to: job.postedByEmail,
+            subject: "Payment Successful!",
+            html: `
+    <h2>Payment Received 🎉</h2>
+    <p><b>Job:</b> ${job.title}</p>
+    <p><b>Amount:</b> ₹${order.amount / 100}</p>
+    <p><b>Applicant:</b> ${order.customerName}</p>
+    <p><b>Phone:</b> ${order.mobileNumber}</p>
+    <p><b>Order ID:</b> ${merchantOrderId}</p>
+  `
+          })
         }
       }
 
