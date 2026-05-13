@@ -1,6 +1,5 @@
 import nodemailer from "nodemailer";
 import { env } from "../config/env.js";
-import { sendEmail } from "../utils/sendEmail.js"
 
 export async function sendEmail({ to, subject, html }) {
 
