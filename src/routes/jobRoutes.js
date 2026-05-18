@@ -8,9 +8,7 @@ export function createJobRouter() {
   // GET all jobs
   router.get("/jobs", async (req, res) => {
     try {
-      const jobs = await Job.find({
-  isActive: true
-}).sort({ createdAt: -1 })
+      const jobs = await Job.find().sort({ createdAt: -1 })
       res.json({ jobs })
     } catch (e) {
       console.error("Error fetching jobs", e)

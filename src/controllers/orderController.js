@@ -250,11 +250,7 @@ export function makeOrderController(client) {
               applicantPhone: order.mobileNumber,
               amount: order.amount
             })
-
-              // ✅ HIDE JOB AFTER APPLY
-            await Job.findByIdAndUpdate(order.jobId, {
-              isActive: false
-            })
+            
 
             // ---------------- EMAIL ----------------
             if (job?.postedByEmail) {
