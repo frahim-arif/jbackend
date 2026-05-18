@@ -253,21 +253,31 @@ const statusCallback =
 
             // ---------------- EMAIL ----------------
             if (job?.postedByEmail) {
-              await sendEmail({
-                to: job.postedByEmail,
-                subject: `New Application for ${job.title}`,
-                html: `
-                  <h2>New Job Application</h2>
-                  <p><strong>Name:</strong> ${order.customerName}</p>
-                  <p><strong>Phone:</strong> ${order.mobileNumber}</p>
-                  <p><strong>Email:</strong> ${order.email || 'N/A'}</p>
-                  <p><strong>Paid:</strong> ₹${(order.amount / 100).toFixed(2)}</p>
-                  <p><strong>MerchantOrderId:</strong> ${merchantOrderId}</p>
-                `
-              })
-            }
-          }
-        }
+
+  try {
+
+    await sendEmail({
+      to: job.postedByEmail,
+      subject: `New Application for ${job.title}`,
+      html: `
+        <h2>New Job Application</h2>
+        <p><strong>Name:</strong> ${order.customerName}</p>
+        <p><strong>Phone:</strong> ${order.mobileNumber}</p>
+        <p><strong>Email:</strong> ${order.email || 'N/A'}</p>
+        <p><strong>Paid:</strong> ₹${(order.amount / 100).toFixed(2)}</p>
+        <p><strong>MerchantOrderId:</strong> ${merchantOrderId}</p>
+      `
+    });
+
+    console.log("EMAIL SUCCESS");
+
+  } catch (emailErr) {
+
+    console.error("EMAIL FAILED:", emailErr);
+
+  }
+
+}
 
         // ---------------- REDIRECT ----------------
         const successUrl = `${env.frontendUrl}/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
