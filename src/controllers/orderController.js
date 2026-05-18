@@ -282,7 +282,7 @@ export function makeOrderController(client) {
         }
 
         // ---------------- REDIRECT ----------------
-        const successUrl = `${env.frontendUrl}/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
+        const successUrl = `${env.frontendUrl}/`
         const failureUrl = `${env.frontendUrl}/failure?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
 
         return res.redirect(status === 'COMPLETED' ? successUrl : failureUrl)
