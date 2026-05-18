@@ -188,8 +188,8 @@ export function makeOrderController(client) {
         })
 
         // ---------------- FIXED: PhonePe callback URL ----------------
-const statusCallback =
-  `https://jbackend-h963.onrender.com/check-status?merchantOrderId=${merchantOrderId}`
+        const statusCallback =
+          `https://jbackend-h963.onrender.com/check-status?merchantOrderId=${merchantOrderId}`
         const request = StandardCheckoutPayRequest
           .builder()
           .merchantOrderId(merchantOrderId)
@@ -254,12 +254,12 @@ const statusCallback =
             // ---------------- EMAIL ----------------
             if (job?.postedByEmail) {
 
-  try {
+              try {
 
-    await sendEmail({
-      to: job.postedByEmail,
-      subject: `New Application for ${job.title}`,
-      html: `
+                await sendEmail({
+                  to: job.postedByEmail,
+                  subject: `New Application for ${job.title}`,
+                  html: `
         <h2>New Job Application</h2>
         <p><strong>Name:</strong> ${order.customerName}</p>
         <p><strong>Phone:</strong> ${order.mobileNumber}</p>
@@ -267,17 +267,19 @@ const statusCallback =
         <p><strong>Paid:</strong> ₹${(order.amount / 100).toFixed(2)}</p>
         <p><strong>MerchantOrderId:</strong> ${merchantOrderId}</p>
       `
-    });
+                });
 
-    console.log("EMAIL SUCCESS");
+                console.log("EMAIL SUCCESS");
 
-  } catch (emailErr) {
+              } catch (emailErr) {
 
-    console.error("EMAIL FAILED:", emailErr);
+                console.error("EMAIL FAILED:", emailErr);
 
-  }
+              }
 
-}
+            }
+          }
+        }
 
         // ---------------- REDIRECT ----------------
         const successUrl = `${env.frontendUrl}/success?merchantOrderId=${encodeURIComponent(merchantOrderId)}`
