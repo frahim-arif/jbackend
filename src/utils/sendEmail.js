@@ -9,7 +9,7 @@ export async function sendEmail({ to, subject, html }) {
     console.log("EMAIL FUNCTION CALLED");
 
     const result = await resend.emails.send({
-      from: "JobHir <frahim9900@gmail.com>",
+      from: "JobHir <noreply@jobhir.com>",
       to,
       subject,
       html,
