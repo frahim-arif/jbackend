@@ -3,6 +3,7 @@ import { sendEmail } from "../utils/sendEmail.js"
 import { Job } from "../models/Job.js"
 import { Order } from "../models/Order.js"
 import { env } from "../config/env.js"
+import { Application } from "../models/Application.js"
 
 const router = Router()
 
@@ -87,4 +88,33 @@ router.post("/phonepe/webhook", async (req, res) => {
   }
 })
 
+router.get("/applied-jobs/:mobile", async (req, res) => {
+  try {
+
+    const { mobile } = req.params
+
+    const applications = await Application.find({
+      applicantPhone: mobile
+    })
+
+    const appliedJobIds = applications.map(app =>
+      app.jobId.toString()
+    )
+
+    res.json({
+      success: true,
+      appliedJobIds
+    })
+
+  } catch (e) {
+
+    console.error("Applied jobs error:", e)
+
+    res.status(500).json({
+      success: false,
+      message: "Server error"
+    })
+
+  }
+})
 export default router
