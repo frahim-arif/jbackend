@@ -9,6 +9,7 @@ import { createJobRouter } from './routes/jobRoutes.js'
 import { createSitemapRouter } from './routes/sitemap.js';
 import webhookRoutes from './routes/webhook.routes.js'
 import { createWorkerRouter } from './routes/workerRoutes.js'
+import { createNotificationRouter } from "./routes/notificationRoutes.js";
 
 
 export async function createApp() {
@@ -31,6 +32,11 @@ export async function createApp() {
   app.use('/', createJobRouter())
   app.use('/', createSitemapRouter());
   app.use('/', createWorkerRouter())
+    app.use(
+    "/",
+    createNotificationRouter()
+  );
+
 
   // Health check
   app.get('/health', (req, res) => res.json({ status: 'ok' }))
