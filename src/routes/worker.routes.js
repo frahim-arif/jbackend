@@ -1,83 +1,117 @@
 
-const express = require("express");
-const router = express.Router();
+import express from 'express'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
 
-const multer = require("multer");
-const path = require("path");
-
-const {
+import {
   registerWorker,
   getWorkers,
-  getWorkerById,
-} = require("../controllers/worker.controller");
+  getWorkerById
+} from '../controllers/workerController.js'
 
 
-// ===============================
-// Multer Configuration
-// ===============================
+export function createWorkerRouter() {
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-
-  filename: function (req, file, cb) {
-    const uniqueName =
-      Date.now() +
-      "-" +
-      Math.round(Math.random() * 1e9) +
-      path.extname(file.originalname);
-
-    cb(null, uniqueName);
-  },
-});
+  const router = express.Router()
 
 
-const fileFilter = (req, file, cb) => {
-  const allowedTypes = [
-    "image/jpeg",
-    "image/png",
-    "image/jpg",
-    "application/pdf",
-  ];
+  // ==========================
+  // Upload Folder
+  // ==========================
 
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(
-      new Error("Only JPG, JPEG, PNG and PDF files are allowed"),
-      false
-    );
+  const uploadDir = 'uploads'
+
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true })
   }
-};
 
 
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024,
-  },
-});
+  // ==========================
+  // Multer Storage
+  // ==========================
+
+  const storage = multer.diskStorage({
+
+    destination: (req, file, cb) => {
+      cb(null, uploadDir)
+    },
+
+    filename: (req, file, cb) => {
+
+      const uniqueName =
+        Date.now() +
+        '-' +
+        Math.round(Math.random() * 1e9) +
+        path.extname(file.originalname)
+
+      cb(null, uniqueName)
+    }
+
+  })
 
 
-// ===============================
-// Routes
-// ===============================
+  // ==========================
+  // File Filter
+  // ==========================
 
-// Register Worker
-router.post(
-  "/register",
-  upload.single("kycDocument"),
-  registerWorker
-);
+  const fileFilter = (req, file, cb) => {
 
-// Get All Workers
-router.get("/", getWorkers);
-
-// Get Worker By ID
-router.get("/:id", getWorkerById);
+    const allowedTypes = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'application/pdf'
+    ]
 
 
-module.exports = router;
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true)
+    } else {
+      cb(
+        new Error('Only JPG, JPEG, PNG and PDF files are allowed')
+      )
+    }
+
+  }
+
+
+  const upload = multer({
+    storage,
+    fileFilter,
+
+    limits: {
+      fileSize: 5 * 1024 * 1024
+    }
+  })
+
+
+  // ==========================
+  // Routes
+  // ==========================
+
+  // Register Worker
+  router.post(
+    '/workers/register',
+    upload.single('kycDocument'),
+    registerWorker
+  )
+
+
+  // Get all workers
+  router.get(
+    '/workers',
+    getWorkers
+  )
+
+
+  // Get worker by ID
+  router.get(
+    '/workers/:id',
+    getWorkerById
+  )
+
+
+  return router
+}
 

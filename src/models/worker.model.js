@@ -1,59 +1,27 @@
 
-const mongoose = require("mongoose");
+import mongoose from 'mongoose'
 
-const workerSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+const workerSchema = new mongoose.Schema({
+  name: String,
+  mobile: String,
+  district: String,
+  workType: String,
+  kycType: String,
+  kycNumber: String,
+  kycDocument: String,
 
-    mobile: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    district: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    workType: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    kycType: {
-      type: String,
-      required: true,
-      enum: ["Aadhaar", "PAN"],
-    },
-
-    kycNumber: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-
-    kycDocument: {
-      type: String,
-      default: null,
-    },
-
-    status: {
-      type: String,
-      enum: ["Pending", "Approved", "Rejected"],
-      default: "Pending",
-    },
+  status: {
+    type: String,
+    default: 'Pending'
   },
-  {
-    timestamps: true,
-  }
-);
 
-module.exports = mongoose.model("Worker", workerSchema);
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  versionKey: false
+})
+
+export const Worker = mongoose.model('Worker', workerSchema)
 
