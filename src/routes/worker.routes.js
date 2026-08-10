@@ -1,71 +1,99 @@
-import express from 'express'
-import multer from 'multer'
-import path from 'path'
-import fs from 'fs'
+import express from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 
 import {
   registerWorker,
   getWorkers,
-  getWorkerById
-} from '../controllers/workerController.js'
-
+  getWorkerById,
+} from "../controllers/workerController.js";
 
 export function createWorkerRouter() {
+  const router = express.Router();
 
-  const router = express.Router()
+  // =========================
+  // Upload Directory
+  // =========================
 
-  const uploadDir = 'uploads'
+  const uploadDir = "uploads";
 
   if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true })
+    fs.mkdirSync(uploadDir, {
+      recursive: true,
+    });
   }
 
-  const storage = multer.diskStorage({
+  // =========================
+  // Multer Storage
+  // =========================
 
+  const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, uploadDir)
+      cb(null, uploadDir);
     },
 
     filename: (req, file, cb) => {
-
       const uniqueName =
         Date.now() +
-        '-' +
+        "-" +
         Math.round(Math.random() * 1e9) +
-        path.extname(file.originalname)
+        path.extname(file.originalname);
 
-      cb(null, uniqueName)
-    }
+      cb(null, uniqueName);
+    },
+  });
 
-  })
+  // =========================
+  // Multer Upload
+  // =========================
 
   const upload = multer({
     storage,
 
     limits: {
-      fileSize: 5 * 1024 * 1024
-    }
-  })
+      fileSize: 5 * 1024 * 1024,
+    },
+  });
 
+  // =========================
+  // Register Worker
+  // =========================
 
   router.post(
-    '/workers/register',
-    upload.single('kycDocument'),
+    "/workers/register",
+    upload.single("kycDocument"),
     registerWorker
-  )
+  );
 
+  // =========================
+  // Get All Workers
+  // =========================
 
   router.get(
-    '/workers',
+    "/workers",
     getWorkers
-  )
+  );
 
+  // =========================
+  // Get Worker By ID
+  // =========================
 
   router.get(
-    '/workers/:id',
+    "/workers/:id",
     getWorkerById
-  )
+  );
 
+  // =========================
+  // Test Worker Route
+  // =========================
 
-  return router
+  router.get("/workers/test", (req, res) => {
+    res.json({
+      success: true,
+      message: "Worker route is working",
+    });
+  });
+
+  return router;
 }
