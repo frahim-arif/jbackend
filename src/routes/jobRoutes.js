@@ -1,7 +1,6 @@
 import { Router } from "express";
 
 import { Job } from "../models/Job.js";
-
 import { Worker } from "../models/Worker.js";
 
 import {
@@ -10,56 +9,38 @@ import {
 
 import adminAuth from "../middleware/adminAuth.js";
 
-
 export function createJobRouter() {
-
   const router = Router();
-
 
   // ===============================
   // GET ALL JOBS
   // ===============================
 
   router.get("/jobs", async (req, res) => {
-
     try {
-
-      const jobs = await Job
-        .find()
-        .sort({
-          createdAt: -1,
-        });
-
+      const jobs = await Job.find().sort({
+        createdAt: -1,
+      });
 
       res.json({
         jobs,
       });
-
-
     } catch (e) {
+      console.error("Error fetching jobs", e);
 
-      console.error(
-        "Error fetching jobs",
-        e
-      );
-
-      res.status(500).send(
-        "Error fetching jobs"
-      );
-
+      res.status(500).json({
+        success: false,
+        message: "Error fetching jobs",
+      });
     }
-
   });
-
 
   // ===============================
   // CREATE JOB
   // ===============================
 
   router.post("/jobs", async (req, res) => {
-
     try {
-
       const {
         title,
         description,
@@ -70,101 +51,108 @@ export function createJobRouter() {
         postedByPhone,
       } = req.body;
 
-
       // ===============================
       // Create Job
       // ===============================
 
       const job = await Job.create({
-
         title,
-
         description,
-
         amount,
-
         district,
-
         workType,
-
         postedByEmail,
-
         postedByPhone,
-
       });
 
+      console.log("=================================");
+      console.log("NEW JOB CREATED");
+      console.log("Job ID:", job._id);
+      console.log("District:", district);
+      console.log("Work Type:", workType);
+      console.log("=================================");
 
       // ===============================
       // Find Matching Workers
       // ===============================
 
       const workers = await Worker.find({
-
         district: district,
-
         workType: workType,
-
       });
-
 
       console.log(
         `🔔 Matching workers: ${workers.length}`
       );
 
+      console.log(
+        "Matching Workers:",
+        workers.map((worker) => ({
+          id: worker._id,
+          name: worker.name,
+          district: worker.district,
+          workType: worker.workType,
+        }))
+      );
 
       // ===============================
       // Create Notifications
       // ===============================
 
-      for (const worker of workers) {
+      let notifiedWorkers = 0;
 
-        await createJobNotification(
-          worker,
-          job
+      for (const worker of workers) {
+        console.log(
+          "Creating notification for:",
+          worker.name,
+          worker._id
         );
 
-      }
+        const notification =
+          await createJobNotification(
+            worker,
+            job
+          );
 
+        if (notification) {
+          notifiedWorkers++;
+
+          console.log(
+            "✅ Notification created:",
+            notification._id
+          );
+        } else {
+          console.log(
+            "❌ Notification failed for:",
+            worker.name
+          );
+        }
+      }
 
       // ===============================
       // Response
       // ===============================
 
       res.json({
-
         success: true,
-
-        message:
-          "Job created successfully",
-
+        message: "Job created successfully",
         job,
-
-        notifiedWorkers:
-          workers.length,
-
+        notifiedWorkers,
       });
 
-
     } catch (e) {
-
       console.error(
-        "Error creating job",
+        "Error creating job:",
         e
       );
 
       res.status(500).json({
-
         success: false,
-
-        message:
-          "Error creating job",
-
+        message: "Error creating job",
+        error: e.message,
       });
-
     }
-
   });
-
 
   // ===============================
   // DELETE JOB
@@ -173,64 +161,37 @@ export function createJobRouter() {
   router.delete(
     "/jobs/:id",
     async (req, res) => {
-
       try {
-
-        const { id } =
-          req.params;
-
+        const { id } = req.params;
 
         const deletedJob =
-          await Job.findByIdAndDelete(
-            id
-          );
-
+          await Job.findByIdAndDelete(id);
 
         if (!deletedJob) {
-
           return res.status(404).json({
-
             success: false,
-
-            message:
-              "Job not found",
-
+            message: "Job not found",
           });
-
         }
 
-
         res.json({
-
           success: true,
-
-          message:
-            "Job deleted successfully",
-
+          message: "Job deleted successfully",
         });
 
-
       } catch (e) {
-
         console.error(
-          "Error deleting job",
+          "Error deleting job:",
           e
         );
 
         res.status(500).json({
-
           success: false,
-
-          message:
-            "Error deleting job",
-
+          message: "Error deleting job",
         });
-
       }
-
     }
   );
-
 
   return router;
 }
