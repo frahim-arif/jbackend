@@ -113,33 +113,199 @@ export function makeOrderController(client) {
             })
             
 
-            // ---------------- EMAIL ----------------
-            if (job?.postedByEmail) {
+            
+    // ---------------- EMAIL ----------------
+if (job?.postedByEmail) {
 
-              try {
+  try {
 
-                await sendEmail({
-                  to: job.postedByEmail,
-                  subject: `New Application for ${job.title}`,
-                  html: `
-        <h2>New Job Application</h2>
-        <p><strong>Name:</strong> ${order.customerName}</p>
-        <p><strong>Phone:</strong> ${order.mobileNumber}</p>
-        <p><strong>Email:</strong> ${order.email || 'N/A'}</p>
-        <p><strong>Paid:</strong> ₹${(order.amount / 100).toFixed(2)}</p>
-        <p><strong>MerchantOrderId:</strong> ${merchantOrderId}</p>
+    // =====================================================
+    // EMPLOYER / JOB LOCATION
+    // Worker ki current location yahan use nahi hogi
+    // =====================================================
+
+    const jobLocation = job.location || {};
+
+    const address =
+      jobLocation.address || "Not provided";
+
+    const village =
+      jobLocation.village || "Not provided";
+
+    const locality =
+      jobLocation.locality || "Not provided";
+
+    const district =
+      jobLocation.district ||
+      job.district ||
+      "Not provided";
+
+    const postcode =
+      jobLocation.postcode || "Not provided";
+
+    const latitude =
+      jobLocation.latitude;
+
+    const longitude =
+      jobLocation.longitude;
+
+    // =====================================================
+    // MAP LINK
+    // =====================================================
+
+    let mapLink = "";
+
+    if (
+      latitude !== undefined &&
+      latitude !== null &&
+      longitude !== undefined &&
+      longitude !== null
+    ) {
+      mapLink = `
+        <p>
+          <strong>🗺️ Map:</strong>
+          <a
+            href="https://www.google.com/maps?q=${latitude},${longitude}"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Job Location on Google Maps
+          </a>
+        </p>
+      `;
+    }
+
+    // =====================================================
+    // SEND EMAIL TO EMPLOYER
+    // =====================================================
+
+    await sendEmail({
+
+      to: job.postedByEmail,
+
+      subject: `New Application for ${job.title}`,
+
+      html: `
+        <div style="
+          font-family: Arial, sans-serif;
+          max-width: 650px;
+          margin: 0 auto;
+          padding: 20px;
+          color: #222;
+        ">
+
+          <h2 style="
+            color: #2563eb;
+            margin-bottom: 20px;
+          ">
+            New Job Application
+          </h2>
+
+          <p>
+            Someone has applied for your job.
+          </p>
+
+          <hr />
+
+          <h3>👤 Applicant Details</h3>
+
+          <p>
+            <strong>Name:</strong>
+            ${order.customerName}
+          </p>
+
+          <p>
+            <strong>Phone:</strong>
+            ${order.mobileNumber}
+          </p>
+
+          <p>
+            <strong>Email:</strong>
+            ${order.email || "N/A"}
+          </p>
+
+          <p>
+            <strong>Paid:</strong>
+            ₹${(order.amount / 100).toFixed(2)}
+          </p>
+
+          <hr />
+
+          <h3>💼 Job Details</h3>
+
+          <p>
+            <strong>Job:</strong>
+            ${job.title}
+          </p>
+
+          <p>
+            <strong>District:</strong>
+            ${job.district || "N/A"}
+          </p>
+
+          <hr />
+
+          <h3>📍 Job Location</h3>
+
+          <p>
+            <strong>Address:</strong>
+            ${address}
+          </p>
+
+          <p>
+            <strong>Village:</strong>
+            ${village}
+          </p>
+
+          <p>
+            <strong>Locality / Mohalla:</strong>
+            ${locality}
+          </p>
+
+          <p>
+            <strong>District:</strong>
+            ${district}
+          </p>
+
+          <p>
+            <strong>PIN Code:</strong>
+            ${postcode}
+          </p>
+
+          ${mapLink}
+
+          <hr />
+
+          <p>
+            <strong>Merchant Order ID:</strong>
+            ${merchantOrderId}
+          </p>
+
+          <p style="
+            margin-top: 25px;
+            color: #666;
+            font-size: 13px;
+          ">
+            This location is the location provided by the
+            employer while posting the job.
+          </p>
+
+        </div>
       `
-                });
+    });
 
-                console.log("EMAIL SUCCESS");
+    console.log("EMAIL SUCCESS");
 
-              } catch (emailErr) {
+  } catch (emailErr) {
 
-                console.error("EMAIL FAILED:", emailErr);
+    console.error(
+      "EMAIL FAILED:",
+      emailErr
+    );
 
-              }
+  }
 
-            }
+}
           }
         }
 
