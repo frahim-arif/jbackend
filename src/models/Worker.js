@@ -1,27 +1,56 @@
+import mongoose from "mongoose";
 
-import mongoose from 'mongoose'
+const workerSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
+    },
 
-const workerSchema = new mongoose.Schema({
-  name: String,
-  mobile: String,
-  district: String,
-  workType: String,
-  kycType: String,
-  kycNumber: String,
-  kycDocument: String,
+    mobile: {
+      type: String,
+      trim: true,
+    },
 
-  status: {
-    type: String,
-    default: 'Pending'
+    // =====================================================
+    // WORKER LOCATION
+    // =====================================================
+
+    state: {
+      type: String,
+      trim: true,
+    },
+
+    district: {
+      type: String,
+      trim: true,
+    },
+
+    workType: {
+      type: String,
+      trim: true,
+    },
+
+    kycType: String,
+
+    kycNumber: String,
+
+    kycDocument: String,
+
+    status: {
+      type: String,
+      default: "Pending",
+    },
+
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
-
-  createdAt: {
-    type: Date,
-    default: Date.now
+  {
+    versionKey: false,
   }
-}, {
-  versionKey: false
-})
+);
 
-export const Worker = mongoose.model('Worker', workerSchema)
-
+export const Worker =
+  mongoose.model("Worker", workerSchema);

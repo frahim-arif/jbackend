@@ -9,6 +9,7 @@ export async function registerWorker(req, res) {
     const {
       name,
       mobile,
+      state,
       district,
       workType,
       kycType,
@@ -22,6 +23,7 @@ export async function registerWorker(req, res) {
     if (
       !name ||
       !mobile ||
+      !state ||
       !district ||
       !workType ||
       !kycType ||
@@ -40,7 +42,51 @@ export async function registerWorker(req, res) {
     if (!/^\d{10}$/.test(mobile)) {
       return res.status(400).json({
         success: false,
-        message: "Please enter a valid 10 digit mobile number",
+        message:
+          "Please enter a valid 10 digit mobile number",
+      });
+    }
+
+    // =========================
+    // KYC Validation
+    // =========================
+
+    if (!["Aadhaar", "PAN"].includes(kycType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid KYC document type",
+      });
+    }
+
+    // =========================
+    // Aadhaar Validation
+    // =========================
+
+    if (
+      kycType === "Aadhaar" &&
+      !/^\d{12}$/.test(kycNumber)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid 12 digit Aadhaar number",
+      });
+    }
+
+    // =========================
+    // PAN Validation
+    // =========================
+
+    if (
+      kycType === "PAN" &&
+      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(
+        kycNumber.toUpperCase()
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid PAN number",
       });
     }
 
@@ -55,7 +101,8 @@ export async function registerWorker(req, res) {
     if (existingWorker) {
       return res.status(409).json({
         success: false,
-        message: "Worker with this mobile number already exists",
+        message:
+          "Worker with this mobile number already exists",
       });
     }
 
@@ -68,31 +115,57 @@ export async function registerWorker(req, res) {
       : null;
 
     // =========================
-    // Create Worker
+    // KYC Document Required
+    // =========================
+
+    if (!kycDocument) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please upload your KYC document",
+      });
+    }
+
+    // =========================
+    // CREATE WORKER
     // =========================
 
     const worker = await Worker.create({
       name: name.trim(),
-      mobile,
-      district,
-      workType,
-      kycType,
-      kycNumber,
+
+      mobile: mobile.trim(),
+
+      // India-wide location
+      state: state.trim(),
+
+      district: district.trim(),
+
+      workType: workType.trim(),
+
+      kycType: kycType.trim(),
+
+      kycNumber:
+        kycNumber.trim().toUpperCase(),
+
       kycDocument,
+
+      status: "Pending",
     });
 
     // =========================
-    // Success Response
+    // SUCCESS
     // =========================
 
     return res.status(201).json({
       success: true,
-      message: "Worker registered successfully",
+
+      message:
+        "Worker registered successfully",
+
       worker,
     });
 
   } catch (error) {
-
     console.error(
       "Worker Registration Error:",
       error
@@ -104,7 +177,7 @@ export async function registerWorker(req, res) {
       error: error.message,
     });
   }
-}
+};
 
 
 // =====================================================
@@ -113,7 +186,6 @@ export async function registerWorker(req, res) {
 
 export async function getWorkers(req, res) {
   try {
-
     const workers = await Worker
       .find()
       .sort({
@@ -127,7 +199,6 @@ export async function getWorkers(req, res) {
     });
 
   } catch (error) {
-
     console.error(
       "Get Workers Error:",
       error
@@ -139,7 +210,7 @@ export async function getWorkers(req, res) {
       error: error.message,
     });
   }
-}
+};
 
 
 // =====================================================
@@ -148,10 +219,10 @@ export async function getWorkers(req, res) {
 
 export async function getWorkerById(req, res) {
   try {
-
-    const worker = await Worker.findById(
-      req.params.id
-    );
+    const worker =
+      await Worker.findById(
+        req.params.id
+      );
 
     if (!worker) {
       return res.status(404).json({
@@ -166,7 +237,6 @@ export async function getWorkerById(req, res) {
     });
 
   } catch (error) {
-
     console.error(
       "Get Worker Error:",
       error

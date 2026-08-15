@@ -7,8 +7,6 @@ import {
   createJobNotification,
 } from "../services/notificationService.js";
 
-import adminAuth from "../middleware/adminAuth.js";
-
 export function createJobRouter() {
   const router = Router();
 
@@ -23,6 +21,7 @@ export function createJobRouter() {
       });
 
       res.json({
+        success: true,
         jobs,
       });
     } catch (e) {
@@ -45,14 +44,49 @@ export function createJobRouter() {
         title,
         description,
         amount,
+
+        state,
         district,
+
         workType,
+
         postedByEmail,
         postedByPhone,
 
-        // Employer ki location
         location,
       } = req.body;
+
+      // =================================================
+      // VALIDATION
+      // =================================================
+
+      if (!title?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Job title required",
+        });
+      }
+
+      if (!state?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "State required",
+        });
+      }
+
+      if (!district?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "District required",
+        });
+      }
+
+      if (!workType?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Work type required",
+        });
+      }
 
       // =================================================
       // CREATE JOB
@@ -62,26 +96,35 @@ export function createJobRouter() {
         title,
         description,
         amount,
+
+        state,
         district,
+
         workType,
+
         postedByEmail,
         postedByPhone,
 
-        // =================================================
-        // IMPORTANT
-        // Employer ki location database me save hogi
-        // =================================================
-        location: location || {},
+        location: {
+          ...(location || {}),
+
+          state:
+            location?.state ||
+            state,
+
+          district:
+            location?.district ||
+            district,
+        },
       });
 
       console.log("=================================");
       console.log("NEW JOB CREATED");
       console.log("Job ID:", job._id);
+      console.log("State:", state);
       console.log("District:", district);
       console.log("Work Type:", workType);
-
-      console.log("Job Location:", job.location);
-
+      console.log("Location:", job.location);
       console.log("=================================");
 
       // =================================================
@@ -89,8 +132,12 @@ export function createJobRouter() {
       // =================================================
 
       const workers = await Worker.find({
+        state: state,
         district: district,
         workType: workType,
+        status: {
+          $ne: "Rejected",
+        },
       });
 
       console.log(
@@ -102,6 +149,7 @@ export function createJobRouter() {
         workers.map((worker) => ({
           id: worker._id,
           name: worker.name,
+          state: worker.state,
           district: worker.district,
           workType: worker.workType,
         }))
@@ -114,12 +162,6 @@ export function createJobRouter() {
       let notifiedWorkers = 0;
 
       for (const worker of workers) {
-        console.log(
-          "Creating notification for:",
-          worker.name,
-          worker._id
-        );
-
         const notification =
           await createJobNotification(
             worker,
@@ -128,16 +170,6 @@ export function createJobRouter() {
 
         if (notification) {
           notifiedWorkers++;
-
-          console.log(
-            "✅ Notification created:",
-            notification._id
-          );
-        } else {
-          console.log(
-            "❌ Notification failed for:",
-            worker.name
-          );
         }
       }
 
@@ -145,13 +177,10 @@ export function createJobRouter() {
       // RESPONSE
       // =================================================
 
-      res.json({
+      return res.json({
         success: true,
-
         message: "Job created successfully",
-
         job,
-
         notifiedWorkers,
       });
 
@@ -161,7 +190,7 @@ export function createJobRouter() {
         e
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Error creating job",
         error: e.message,
@@ -177,10 +206,10 @@ export function createJobRouter() {
     "/jobs/:id",
     async (req, res) => {
       try {
-        const { id } = req.params;
-
         const deletedJob =
-          await Job.findByIdAndDelete(id);
+          await Job.findByIdAndDelete(
+            req.params.id
+          );
 
         if (!deletedJob) {
           return res.status(404).json({
@@ -189,7 +218,7 @@ export function createJobRouter() {
           });
         }
 
-        res.json({
+        return res.json({
           success: true,
           message: "Job deleted successfully",
         });
@@ -200,7 +229,7 @@ export function createJobRouter() {
           e
         );
 
-        res.status(500).json({
+        return res.status(500).json({
           success: false,
           message: "Error deleting job",
         });

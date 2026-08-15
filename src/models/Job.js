@@ -2,27 +2,61 @@ import mongoose from "mongoose";
 
 const jobSchema = new mongoose.Schema(
   {
-    title: String,
+    title: {
+      type: String,
+      trim: true,
+    },
 
-    company: String,
+    company: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
-    description: String,
+    description: {
+      type: String,
+      trim: true,
+    },
 
-    postedByEmail: String,
+    postedByEmail: {
+      type: String,
+      trim: true,
+      default: "",
+    },
 
-    postedByPhone: String,
+    postedByPhone: {
+      type: String,
+      trim: true,
+    },
 
-    amount: Number,
+    amount: {
+      type: Number,
+    },
 
-    district: String,
+    // =====================================================
+    // JOB STATE + DISTRICT
+    // =====================================================
 
-    // Worker matching ke liye
-    workType: String,
+    state: {
+      type: String,
+      trim: true,
+    },
+
+    district: {
+      type: String,
+      trim: true,
+    },
+
+    // Worker matching
+    workType: {
+      type: String,
+      trim: true,
+    },
 
     // =====================================================
     // EMPLOYER JOB LOCATION
-    // Apply karne wale worker ki location nahi
     // =====================================================
+
     location: {
       address: {
         type: String,
@@ -35,6 +69,11 @@ const jobSchema = new mongoose.Schema(
       },
 
       locality: {
+        type: String,
+        default: "",
+      },
+
+      state: {
         type: String,
         default: "",
       },

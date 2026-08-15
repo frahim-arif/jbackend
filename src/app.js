@@ -13,6 +13,7 @@ import { createSitemapRouter } from './routes/sitemap.js'
 import webhookRoutes from './routes/webhook.routes.js'
 import { createWorkerRouter } from './routes/workerRoutes.js'
 import { createNotificationRouter } from './routes/notificationRoutes.js'
+import { createLocationRouter } from "./routes/location.routes.js";
 
 
 export async function createApp() {
@@ -81,7 +82,7 @@ export async function createApp() {
     createWorkerRouter()
   )
 
-
+app.use("/locations", createLocationRouter());
   // ===============================
   // Notification Routes 🔔
   // ===============================
