@@ -12,9 +12,9 @@ import adminAuth from "../middleware/adminAuth.js";
 export function createJobRouter() {
   const router = Router();
 
-  // ===============================
+  // =====================================================
   // GET ALL JOBS
-  // ===============================
+  // =====================================================
 
   router.get("/jobs", async (req, res) => {
     try {
@@ -26,7 +26,7 @@ export function createJobRouter() {
         jobs,
       });
     } catch (e) {
-      console.error("Error fetching jobs", e);
+      console.error("Error fetching jobs:", e);
 
       res.status(500).json({
         success: false,
@@ -35,9 +35,9 @@ export function createJobRouter() {
     }
   });
 
-  // ===============================
+  // =====================================================
   // CREATE JOB
-  // ===============================
+  // =====================================================
 
   router.post("/jobs", async (req, res) => {
     try {
@@ -49,11 +49,14 @@ export function createJobRouter() {
         workType,
         postedByEmail,
         postedByPhone,
+
+        // Employer ki location
+        location,
       } = req.body;
 
-      // ===============================
-      // Create Job
-      // ===============================
+      // =================================================
+      // CREATE JOB
+      // =================================================
 
       const job = await Job.create({
         title,
@@ -63,6 +66,12 @@ export function createJobRouter() {
         workType,
         postedByEmail,
         postedByPhone,
+
+        // =================================================
+        // IMPORTANT
+        // Employer ki location database me save hogi
+        // =================================================
+        location: location || {},
       });
 
       console.log("=================================");
@@ -70,11 +79,14 @@ export function createJobRouter() {
       console.log("Job ID:", job._id);
       console.log("District:", district);
       console.log("Work Type:", workType);
+
+      console.log("Job Location:", job.location);
+
       console.log("=================================");
 
-      // ===============================
-      // Find Matching Workers
-      // ===============================
+      // =================================================
+      // FIND MATCHING WORKERS
+      // =================================================
 
       const workers = await Worker.find({
         district: district,
@@ -95,9 +107,9 @@ export function createJobRouter() {
         }))
       );
 
-      // ===============================
-      // Create Notifications
-      // ===============================
+      // =================================================
+      // CREATE NOTIFICATIONS
+      // =================================================
 
       let notifiedWorkers = 0;
 
@@ -129,14 +141,17 @@ export function createJobRouter() {
         }
       }
 
-      // ===============================
-      // Response
-      // ===============================
+      // =================================================
+      // RESPONSE
+      // =================================================
 
       res.json({
         success: true,
+
         message: "Job created successfully",
+
         job,
+
         notifiedWorkers,
       });
 
@@ -154,9 +169,9 @@ export function createJobRouter() {
     }
   });
 
-  // ===============================
+  // =====================================================
   // DELETE JOB
-  // ===============================
+  // =====================================================
 
   router.delete(
     "/jobs/:id",
