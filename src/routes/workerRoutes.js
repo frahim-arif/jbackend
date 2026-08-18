@@ -7,6 +7,9 @@ import {
   registerWorker,
   getWorkers,
   getWorkerById,
+  sendWorkerLoginOtp,
+  verifyWorkerLoginOtp,
+  resendWorkerLoginOtp,
 } from "../controllers/workerController.js";
 
 export function createWorkerRouter() {
@@ -84,6 +87,24 @@ export function createWorkerRouter() {
     getWorkerById
   );
 
+  // =====================================================
+// WORKER LOGIN
+// =====================================================
+
+router.post(
+  "/workers/login/send-otp",
+  sendWorkerLoginOtp
+);
+
+router.post(
+  "/workers/login/verify-otp",
+  verifyWorkerLoginOtp
+);
+
+router.post(
+  "/workers/login/resend-otp",
+  resendWorkerLoginOtp
+);
   // =========================
   // Test Worker Route
   // =========================

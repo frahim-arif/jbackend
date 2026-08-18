@@ -249,3 +249,358 @@ export async function getWorkerById(req, res) {
     });
   }
 }
+
+// =====================================================
+// SEND WORKER LOGIN OTP
+// =====================================================
+
+export async function sendWorkerLoginOtp(req, res) {
+  try {
+    const { mobile } = req.body;
+
+    // -------------------------
+    // Validate mobile
+    // -------------------------
+
+    if (!mobile || !/^\d{10}$/.test(mobile)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid 10 digit mobile number",
+      });
+    }
+
+    // -------------------------
+    // Find worker
+    // -------------------------
+
+    const worker = await Worker.findOne({
+      mobile: mobile.trim(),
+    });
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found. Please register first.",
+      });
+    }
+
+    // -------------------------
+    // Fast2SMS API Key
+    // -------------------------
+
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    const otpId =
+      process.env.FAST2SMS_OTP_ID;
+
+    if (!apiKey || !otpId) {
+      console.error(
+        "FAST2SMS_API_KEY or FAST2SMS_OTP_ID missing"
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    // -------------------------
+    // Send OTP
+    // -------------------------
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/send",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        body: JSON.stringify({
+          otp_id: otpId,
+          mobile: mobile.trim(),
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "Fast2SMS Send OTP:",
+      result
+    );
+
+    if (!response.ok || !result.return) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Unable to send OTP",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "OTP sent successfully",
+    });
+
+  } catch (error) {
+    console.error(
+      "Send Worker OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to send OTP",
+    });
+  }
+}
+
+
+// =====================================================
+// VERIFY WORKER LOGIN OTP
+// =====================================================
+
+export async function verifyWorkerLoginOtp(
+  req,
+  res
+) {
+  try {
+    const {
+      mobile,
+      otp,
+    } = req.body;
+
+    // -------------------------
+    // Validate
+    // -------------------------
+
+    if (
+      !mobile ||
+      !/^\d{10}$/.test(mobile)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid mobile number",
+      });
+    }
+
+    if (
+      !otp ||
+      !/^\d{4,8}$/.test(otp)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid OTP",
+      });
+    }
+
+    // -------------------------
+    // Find worker
+    // -------------------------
+
+    const worker = await Worker.findOne({
+      mobile: mobile.trim(),
+    });
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found. Please register first.",
+      });
+    }
+
+    // -------------------------
+    // Fast2SMS
+    // -------------------------
+
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    // -------------------------
+    // Verify OTP
+    // -------------------------
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/verify",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        body: JSON.stringify({
+          mobile: mobile.trim(),
+          otp: otp.trim(),
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "Fast2SMS Verify OTP:",
+      result
+    );
+
+    if (!response.ok || !result.return) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Invalid or expired OTP",
+      });
+    }
+
+    // -------------------------
+    // SUCCESS
+    // -------------------------
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Login successful",
+
+      worker: {
+        _id: worker._id,
+        name: worker.name,
+        mobile: worker.mobile,
+        state: worker.state,
+        district: worker.district,
+        workType: worker.workType,
+        status: worker.status,
+      },
+    });
+
+  } catch (error) {
+    console.error(
+      "Verify Worker OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to verify OTP",
+    });
+  }
+}
+
+
+// =====================================================
+// RESEND WORKER OTP
+// =====================================================
+
+export async function resendWorkerLoginOtp(
+  req,
+  res
+) {
+  try {
+    const { mobile } = req.body;
+
+    if (
+      !mobile ||
+      !/^\d{10}$/.test(mobile)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid mobile number",
+      });
+    }
+
+    const worker = await Worker.findOne({
+      mobile: mobile.trim(),
+    });
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found",
+      });
+    }
+
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/resend",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        body: JSON.stringify({
+          mobile: mobile.trim(),
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (!response.ok || !result.return) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Unable to resend OTP",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "OTP resent successfully",
+    });
+
+  } catch (error) {
+    console.error(
+      "Resend OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to resend OTP",
+    });
+  }
+}
