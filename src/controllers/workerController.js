@@ -52,7 +52,9 @@ export async function registerWorker(req, res) {
     const cleanDistrict = district.trim();
     const cleanWorkType = workType.trim();
     const cleanKycType = kycType.trim();
-    const cleanKycNumber = kycNumber.trim().toUpperCase();
+    const cleanKycNumber = kycNumber
+      .trim()
+      .toUpperCase();
 
     // =================================================
     // MOBILE VALIDATION
@@ -98,7 +100,9 @@ export async function registerWorker(req, res) {
 
     if (
       cleanKycType === "PAN" &&
-      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanKycNumber)
+      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(
+        cleanKycNumber
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -120,7 +124,10 @@ export async function registerWorker(req, res) {
       // ALREADY PAID
       // ===============================================
 
-      if (existingWorker.paymentStatus === "PAID") {
+      if (
+        existingWorker.paymentStatus === "PAID" &&
+        existingWorker.status === "Active"
+      ) {
         return res.status(409).json({
           success: false,
           message:
@@ -129,7 +136,7 @@ export async function registerWorker(req, res) {
       }
 
       // ===============================================
-      // PAYMENT PENDING / FAILED
+      // PAYMENT NOT COMPLETED
       // ===============================================
 
       return res.status(409).json({
@@ -147,7 +154,8 @@ export async function registerWorker(req, res) {
           district: existingWorker.district,
           workType: existingWorker.workType,
           status: existingWorker.status,
-          paymentStatus: existingWorker.paymentStatus,
+          paymentStatus:
+            existingWorker.paymentStatus,
         },
       });
     }
@@ -178,14 +186,18 @@ export async function registerWorker(req, res) {
       state: cleanState,
       district: cleanDistrict,
       workType: cleanWorkType,
+
       kycType: cleanKycType,
       kycNumber: cleanKycNumber,
       kycDocument,
 
-      // Worker remains inactive until payment.
+      // Worker is inactive until payment.
       status: "Pending",
+
       paymentStatus: "PENDING",
-      paymentAmount: WORKER_REGISTRATION_AMOUNT,
+
+      paymentAmount:
+        WORKER_REGISTRATION_AMOUNT,
     });
 
     // =================================================
@@ -194,6 +206,7 @@ export async function registerWorker(req, res) {
 
     return res.status(201).json({
       success: true,
+
       message:
         "Registration details saved. Please complete ₹250 payment.",
 
@@ -207,7 +220,8 @@ export async function registerWorker(req, res) {
         district: worker.district,
         workType: worker.workType,
         status: worker.status,
-        paymentStatus: worker.paymentStatus,
+        paymentStatus:
+          worker.paymentStatus,
       },
     });
   } catch (error) {
@@ -237,6 +251,7 @@ export async function getWorkers(req, res) {
 
     return res.status(200).json({
       success: true,
+      count: workers.length,
       workers,
     });
   } catch (error) {
@@ -253,7 +268,7 @@ export async function getWorkers(req, res) {
 }
 
 // =====================================================
-// GET WORKER BY ID
+// GET SINGLE WORKER
 // =====================================================
 
 export async function getWorkerById(req, res) {
@@ -267,9 +282,10 @@ export async function getWorkerById(req, res) {
       });
     }
 
-    const worker = await Worker.findById(id).select(
-      "-kycNumber"
-    );
+    const worker =
+      await Worker.findById(id).select(
+        "-kycNumber"
+      );
 
     if (!worker) {
       return res.status(404).json({
@@ -284,7 +300,7 @@ export async function getWorkerById(req, res) {
     });
   } catch (error) {
     console.error(
-      "Get Worker By ID Error:",
+      "Get Worker Error:",
       error
     );
 
@@ -296,122 +312,451 @@ export async function getWorkerById(req, res) {
 }
 
 // =====================================================
-// WORKER LOGIN OTP
-// =====================================================
-//
-// IMPORTANT:
-// Yahan tumhara existing OTP implementation
-// use karna hai.
-//
-// sendWorkerLoginOtp
-// verifyWorkerLoginOtp
-// resendWorkerLoginOtp
-//
-// In functions ko placeholder 501 par mat rakho
-// agar WorkerLogin page use karna hai.
-// =====================================================
-
-
-// =====================================================
-// SEND LOGIN OTP
+// SEND WORKER LOGIN OTP
 // =====================================================
 
 export async function sendWorkerLoginOtp(req, res) {
-  /*
-    APNA EXISTING OTP CODE YAHAN RAKHO.
+  try {
+    const { mobile } = req.body;
 
-    Important:
-    OTP bhejne se pehle worker ko check karna:
+    // =================================================
+    // VALIDATE MOBILE
+    // =================================================
 
-      const worker = await Worker.findOne({
-        mobile: mobile.trim(),
+    if (
+      !mobile ||
+      !/^\d{10}$/.test(mobile.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid 10 digit mobile number",
       });
+    }
 
-    Aur sirf registered worker ko OTP bhejna.
+    const cleanMobile = mobile.trim();
 
-    Worker payment check verify ke waqt bhi
-    zaroor karna hai.
-  */
+    // =================================================
+    // FIND WORKER
+    // =================================================
 
-  return res.status(501).json({
-    success: false,
-    message:
-      "Existing OTP implementation required.",
-  });
-}
+    const worker = await Worker.findOne({
+      mobile: cleanMobile,
+    });
 
-
-// =====================================================
-// VERIFY LOGIN OTP
-// =====================================================
-
-export async function verifyWorkerLoginOtp(req, res) {
-  /*
-    APNA EXISTING OTP VERIFICATION CODE YAHAN RAKHO.
-
-    OTP successfully verify hone ke baad:
-
-      const worker = await Worker.findOne({
-        mobile: cleanMobile,
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found. Please register first.",
       });
+    }
 
-    Phir IMPORTANT:
+    // =================================================
+    // PAYMENT CHECK
+    // =================================================
 
-      if (
-        worker.paymentStatus !== "PAID" ||
-        worker.status !== "Active"
-      ) {
-        return res.status(403).json({
-          success: false,
-          message:
-            "Your ₹250 registration payment is not completed.",
-        });
-      }
+    if (
+      worker.paymentStatus !== "PAID" ||
+      worker.status !== "Active"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your ₹250 registration payment is not completed. Please complete registration payment first.",
+      });
+    }
 
-    Aur successful response:
+    // =================================================
+    // FAST2SMS CONFIG
+    // =================================================
 
-      return res.json({
-        success: true,
-        message: "Login successful",
-        worker: {
-          _id: worker._id,
-          name: worker.name,
-          mobile: worker.mobile,
-          state: worker.state,
-          district: worker.district,
-          workType: worker.workType,
-          status: worker.status,
-          paymentStatus: worker.paymentStatus,
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    const otpId =
+      process.env.FAST2SMS_OTP_ID;
+
+    if (!apiKey || !otpId) {
+      console.error(
+        "FAST2SMS_API_KEY or FAST2SMS_OTP_ID missing"
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    // =================================================
+    // SEND OTP
+    // =================================================
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/send",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
+
+        body: JSON.stringify({
+          otp_id: otpId,
+          mobile: cleanMobile,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "Fast2SMS Send OTP:",
+      result
+    );
+
+    if (
+      !response.ok ||
+      !result.return
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Unable to send OTP",
       });
-  */
+    }
 
-  return res.status(501).json({
-    success: false,
-    message:
-      "Existing OTP implementation required.",
-  });
+    return res.status(200).json({
+      success: true,
+      message:
+        "OTP sent successfully",
+    });
+  } catch (error) {
+    console.error(
+      "Send Worker OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to send OTP",
+    });
+  }
 }
 
-
 // =====================================================
-// RESEND LOGIN OTP
+// VERIFY WORKER LOGIN OTP
 // =====================================================
 
-export async function resendWorkerLoginOtp(req, res) {
-  /*
-    APNA EXISTING RESEND OTP CODE YAHAN RAKHO.
+export async function verifyWorkerLoginOtp(
+  req,
+  res
+) {
+  try {
+    const {
+      mobile,
+      otp,
+    } = req.body;
 
-    Resend se pehle worker existence check karo.
+    // =================================================
+    // VALIDATE MOBILE
+    // =================================================
 
-    Payment check resend ke waqt optional hai,
-    lekin VERIFY ke waqt payment check mandatory hai.
-  */
+    if (
+      !mobile ||
+      !/^\d{10}$/.test(mobile.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid mobile number",
+      });
+    }
 
-  return res.status(501).json({
-    success: false,
-    message:
-      "Existing OTP implementation required.",
-  });
+    // =================================================
+    // VALIDATE OTP
+    // =================================================
+
+    if (
+      !otp ||
+      !/^\d{4,8}$/.test(
+        String(otp).trim()
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid OTP",
+      });
+    }
+
+    const cleanMobile = mobile.trim();
+    const cleanOtp = String(otp).trim();
+
+    // =================================================
+    // FIND WORKER
+    // =================================================
+
+    const worker = await Worker.findOne({
+      mobile: cleanMobile,
+    });
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found. Please register first.",
+      });
+    }
+
+    // =================================================
+    // PAYMENT CHECK
+    // =================================================
+    //
+    // OTP correct hone ke baad bhi unpaid worker
+    // login nahi kar sakta.
+    // =================================================
+
+    if (
+      worker.paymentStatus !== "PAID" ||
+      worker.status !== "Active"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your ₹250 registration payment is not completed. Please complete registration payment first.",
+        paymentStatus:
+          worker.paymentStatus,
+        status: worker.status,
+      });
+    }
+
+    // =================================================
+    // FAST2SMS CONFIG
+    // =================================================
+
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    // =================================================
+    // VERIFY OTP
+    // =================================================
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/verify",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        body: JSON.stringify({
+          mobile: cleanMobile,
+          otp: cleanOtp,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "Fast2SMS Verify OTP:",
+      result
+    );
+
+    if (
+      !response.ok ||
+      !result.return
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Invalid or expired OTP",
+      });
+    }
+
+    // =================================================
+    // SUCCESS
+    // =================================================
+
+    return res.status(200).json({
+      success: true,
+
+      message:
+        "Login successful",
+
+      worker: {
+        _id: worker._id,
+        name: worker.name,
+        mobile: worker.mobile,
+        state: worker.state,
+        district: worker.district,
+        workType: worker.workType,
+        status: worker.status,
+        paymentStatus:
+          worker.paymentStatus,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Verify Worker OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to verify OTP",
+    });
+  }
 }
 
+// =====================================================
+// RESEND WORKER OTP
+// =====================================================
+
+export async function resendWorkerLoginOtp(
+  req,
+  res
+) {
+  try {
+    const { mobile } = req.body;
+
+    // =================================================
+    // VALIDATE MOBILE
+    // =================================================
+
+    if (
+      !mobile ||
+      !/^\d{10}$/.test(mobile.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Please enter a valid mobile number",
+      });
+    }
+
+    const cleanMobile = mobile.trim();
+
+    // =================================================
+    // FIND WORKER
+    // =================================================
+
+    const worker = await Worker.findOne({
+      mobile: cleanMobile,
+    });
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Worker not found",
+      });
+    }
+
+    // =================================================
+    // PAYMENT CHECK
+    // =================================================
+
+    if (
+      worker.paymentStatus !== "PAID" ||
+      worker.status !== "Active"
+    ) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your ₹250 registration payment is not completed. Please complete registration payment first.",
+      });
+    }
+
+    // =================================================
+    // FAST2SMS CONFIG
+    // =================================================
+
+    const apiKey =
+      process.env.FAST2SMS_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
+
+    // =================================================
+    // RESEND OTP
+    // =================================================
+
+    const response = await fetch(
+      "https://www.fast2sms.com/dev/otp/resend",
+      {
+        method: "POST",
+
+        headers: {
+          Authorization: apiKey,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+
+        body: JSON.stringify({
+          mobile: cleanMobile,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(
+      "Fast2SMS Resend OTP:",
+      result
+    );
+
+    if (
+      !response.ok ||
+      !result.return
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          result.message ||
+          "Unable to resend OTP",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "OTP resent successfully",
+    });
+  } catch (error) {
+    console.error(
+      "Resend OTP Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to resend OTP",
+    });
+  }
+}
