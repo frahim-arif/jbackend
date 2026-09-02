@@ -371,23 +371,25 @@ export async function sendWorkerLoginOtp(req, res) {
     // FAST2SMS CONFIG
     // =================================================
 
-    const apiKey =
-      process.env.FAST2SMS_API_KEY;
+  const apiKey = process.env.FAST2SMS_API_KEY?.trim();
+const otpId = process.env.FAST2SMS_OTP_ID?.trim();
 
-    const otpId =
-      process.env.FAST2SMS_OTP_ID;
+console.log("📱 Fast2SMS Config:", {
+apiKeyConfigured: Boolean(apiKey),
+otpIdConfigured: Boolean(otpId),
+});
 
-    if (!apiKey || !otpId) {
-      console.error(
-        "FAST2SMS_API_KEY or FAST2SMS_OTP_ID missing"
-      );
+if (!apiKey || !otpId) {
+console.error(
+"❌ Fast2SMS configuration missing. Check FAST2SMS_API_KEY and FAST2SMS_OTP_ID in Render Environment Variables."
+);
 
-      return res.status(500).json({
-        success: false,
-        message:
-          "OTP service is not configured",
-      });
-    }
+return res.status(500).json({
+success: false,
+message: "OTP service is not configured",
+});
+}
+
 
     // =================================================
     // SEND OTP
