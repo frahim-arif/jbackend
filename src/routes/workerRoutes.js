@@ -1,3 +1,4 @@
+
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -21,21 +22,18 @@ import { createPhonePeClient } from "../config/phonepe.js";
 export function createWorkerRouter() {
   const router = express.Router();
 
-  // =========================
-  // PhonePe
-  // =========================
+  // =====================================================
+  // PHONEPE
+  // =====================================================
 
-  const phonepeClient =
-    createPhonePeClient();
+  const phonepeClient = createPhonePeClient();
 
   const workerPaymentController =
-    makeWorkerPaymentController(
-      phonepeClient
-    );
+    makeWorkerPaymentController(phonepeClient);
 
-  // =========================
-  // Upload Directory
-  // =========================
+  // =====================================================
+  // UPLOAD DIRECTORY
+  // =====================================================
 
   const uploadDir = "uploads";
 
@@ -45,57 +43,37 @@ export function createWorkerRouter() {
     });
   }
 
-  // =========================
-  // Multer
-  // =========================
+  // =====================================================
+  // MULTER
+  // =====================================================
 
-  const storage =
-    multer.diskStorage({
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
 
-      destination: (
-        req,
-        file,
-        cb
-      ) => {
-        cb(null, uploadDir);
-      },
+    filename: (req, file, cb) => {
+      const uniqueName =
+        Date.now() +
+        "-" +
+        Math.round(Math.random() * 1e9) +
+        path.extname(file.originalname);
 
-      filename: (
-        req,
-        file,
-        cb
-      ) => {
+      cb(null, uniqueName);
+    },
+  });
 
-        const uniqueName =
-          Date.now() +
-          "-" +
-          Math.round(
-            Math.random() * 1e9
-          ) +
-          path.extname(
-            file.originalname
-          );
+  const upload = multer({
+    storage,
 
-        cb(
-          null,
-          uniqueName
-        );
-      },
-    });
+    limits: {
+      fileSize: 5 * 1024 * 1024,
+    },
+  });
 
-  const upload =
-    multer({
-      storage,
-
-      limits: {
-        fileSize:
-          5 * 1024 * 1024,
-      },
-    });
-
-  // =========================
-  // REGISTER
-  // =========================
+  // =====================================================
+  // WORKER REGISTRATION
+  // =====================================================
 
   router.post(
     "/workers/register",
@@ -103,9 +81,9 @@ export function createWorkerRouter() {
     registerWorker
   );
 
-  // =========================
-  // WORKER ₹250 PAYMENT
-  // =========================
+  // =====================================================
+  // WORKER ₹250 REGISTRATION PAYMENT
+  // =====================================================
 
   router.post(
     "/workers/payment/create",
@@ -117,9 +95,9 @@ export function createWorkerRouter() {
     workerPaymentController.checkWorkerPaymentStatus
   );
 
-  // =========================
+  // =====================================================
   // WORKERS
-  // =========================
+  // =====================================================
 
   router.get(
     "/workers",
@@ -131,9 +109,9 @@ export function createWorkerRouter() {
     getWorkerById
   );
 
-  // =========================
-  // LOGIN
-  // =========================
+  // =====================================================
+  // WORKER LOGIN OTP
+  // =====================================================
 
   router.post(
     "/workers/login/send-otp",
@@ -150,20 +128,20 @@ export function createWorkerRouter() {
     resendWorkerLoginOtp
   );
 
-  // =========================
-  // TEST
-  // =========================
+  // =====================================================
+  // TEST ROUTE
+  // =====================================================
 
   router.get(
     "/workers/test",
     (req, res) => {
-      res.json({
+      return res.json({
         success: true,
-        message:
-          "Worker route is working",
+        message: "Worker route is working",
       });
     }
   );
 
   return router;
 }
+
