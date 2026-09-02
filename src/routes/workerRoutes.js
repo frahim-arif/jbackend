@@ -1,4 +1,3 @@
-
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -8,9 +7,6 @@ import {
   registerWorker,
   getWorkers,
   getWorkerById,
-  sendWorkerLoginOtp,
-  verifyWorkerLoginOtp,
-  resendWorkerLoginOtp,
 } from "../controllers/workerController.js";
 
 import {
@@ -23,7 +19,7 @@ export function createWorkerRouter() {
   const router = express.Router();
 
   // =====================================================
-  // PHONEPE
+  // PHONEPE CLIENT
   // =====================================================
 
   const phonepeClient = createPhonePeClient();
@@ -44,7 +40,7 @@ export function createWorkerRouter() {
   }
 
   // =====================================================
-  // MULTER
+  // MULTER CONFIGURATION
   // =====================================================
 
   const storage = multer.diskStorage({
@@ -67,13 +63,16 @@ export function createWorkerRouter() {
     storage,
 
     limits: {
-      fileSize: 5 * 1024 * 1024,
+      fileSize: 5 * 1024 * 1024, // 5 MB
     },
   });
 
   // =====================================================
   // WORKER REGISTRATION
   // =====================================================
+  // Worker register karega.
+  // Registration ke baad worker Pending rahega.
+  // Payment complete hone ke baad Active hoga.
 
   router.post(
     "/workers/register",
@@ -84,11 +83,16 @@ export function createWorkerRouter() {
   // =====================================================
   // WORKER ₹250 REGISTRATION PAYMENT
   // =====================================================
+  // One-time registration payment
 
   router.post(
     "/workers/payment/create",
     workerPaymentController.createWorkerPayment
   );
+
+  // =====================================================
+  // PHONEPE PAYMENT STATUS
+  // =====================================================
 
   router.get(
     "/worker-payment/check-status",
@@ -110,25 +114,6 @@ export function createWorkerRouter() {
   );
 
   // =====================================================
-  // WORKER LOGIN OTP
-  // =====================================================
-
-  router.post(
-    "/workers/login/send-otp",
-    sendWorkerLoginOtp
-  );
-
-  router.post(
-    "/workers/login/verify-otp",
-    verifyWorkerLoginOtp
-  );
-
-  router.post(
-    "/workers/login/resend-otp",
-    resendWorkerLoginOtp
-  );
-
-  // =====================================================
   // TEST ROUTE
   // =====================================================
 
@@ -144,4 +129,3 @@ export function createWorkerRouter() {
 
   return router;
 }
-
