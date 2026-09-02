@@ -1,15 +1,32 @@
+
 import express from "express";
 
 import { Notification } from "../models/Notification.js";
+import { Worker } from "../models/Worker.js";
 
 export function createNotificationRouter() {
 
   const router = express.Router();
 
 
-  // ===============================
+  // =====================================================
+  // Check Worker Access
+  // =====================================================
+
+  async function getActivePaidWorker(workerId) {
+
+    return await Worker.findOne({
+      _id: workerId,
+      paymentStatus: "PAID",
+      status: "Active",
+    });
+
+  }
+
+
+  // =====================================================
   // Get Worker Notifications
-  // ===============================
+  // =====================================================
 
   router.get(
     "/notifications/:workerId",
@@ -20,13 +37,34 @@ export function createNotificationRouter() {
         const { workerId } = req.params;
 
 
+        // Check worker payment + active status
+        const worker =
+          await getActivePaidWorker(workerId);
+
+
+        if (!worker) {
+
+          return res.status(403).json({
+            success: false,
+            message:
+              "Worker account is not active. Please complete the ₹250 registration payment.",
+            notifications: [],
+          });
+
+        }
+
+
         const notifications =
           await Notification
-            .find({ workerId })
-            .sort({ createdAt: -1 });
+            .find({
+              workerId: worker._id,
+            })
+            .sort({
+              createdAt: -1,
+            });
 
 
-        res.json({
+        return res.json({
           success: true,
           notifications,
         });
@@ -39,7 +77,8 @@ export function createNotificationRouter() {
           error
         );
 
-        res.status(500).json({
+
+        return res.status(500).json({
           success: false,
           message: "Unable to get notifications",
         });
@@ -50,9 +89,9 @@ export function createNotificationRouter() {
   );
 
 
-  // ===============================
+  // =====================================================
   // Get Unread Count
-  // ===============================
+  // =====================================================
 
   router.get(
     "/notifications/:workerId/unread",
@@ -63,14 +102,31 @@ export function createNotificationRouter() {
         const { workerId } = req.params;
 
 
+        // Check worker payment + active status
+        const worker =
+          await getActivePaidWorker(workerId);
+
+
+        if (!worker) {
+
+          return res.status(403).json({
+            success: false,
+            count: 0,
+            message:
+              "Worker account is not active.",
+          });
+
+        }
+
+
         const count =
           await Notification.countDocuments({
-            workerId,
+            workerId: worker._id,
             isRead: false,
           });
 
 
-        res.json({
+        return res.json({
           success: true,
           count,
         });
@@ -83,9 +139,11 @@ export function createNotificationRouter() {
           error
         );
 
-        res.status(500).json({
+
+        return res.status(500).json({
           success: false,
-          message: "Unable to get unread count",
+          message:
+            "Unable to get unread count",
         });
 
       }
@@ -94,9 +152,9 @@ export function createNotificationRouter() {
   );
 
 
-  // ===============================
+  // =====================================================
   // Mark One Notification Read
-  // ===============================
+  // =====================================================
 
   router.put(
     "/notifications/:id/read",
@@ -104,29 +162,49 @@ export function createNotificationRouter() {
 
       try {
 
+        const { id } = req.params;
+
+
+        // First find notification
         const notification =
-          await Notification.findByIdAndUpdate(
-            req.params.id,
-            {
-              isRead: true,
-            },
-            {
-              new: true,
-            }
-          );
+          await Notification.findById(id);
 
 
         if (!notification) {
 
           return res.status(404).json({
             success: false,
-            message: "Notification not found",
+            message:
+              "Notification not found",
           });
 
         }
 
 
-        res.json({
+        // Check notification's worker
+        const worker =
+          await getActivePaidWorker(
+            notification.workerId
+          );
+
+
+        if (!worker) {
+
+          return res.status(403).json({
+            success: false,
+            message:
+              "Worker account is not active.",
+          });
+
+        }
+
+
+        notification.isRead = true;
+
+        await notification.save();
+
+
+        return res.json({
           success: true,
           notification,
         });
@@ -139,9 +217,11 @@ export function createNotificationRouter() {
           error
         );
 
-        res.status(500).json({
+
+        return res.status(500).json({
           success: false,
-          message: "Unable to update notification",
+          message:
+            "Unable to update notification",
         });
 
       }
@@ -150,9 +230,9 @@ export function createNotificationRouter() {
   );
 
 
-  // ===============================
+  // =====================================================
   // Mark All Notifications Read
-  // ===============================
+  // =====================================================
 
   router.put(
     "/notifications/:workerId/read-all",
@@ -160,20 +240,42 @@ export function createNotificationRouter() {
 
       try {
 
+        const { workerId } = req.params;
+
+
+        // Check worker payment + active status
+        const worker =
+          await getActivePaidWorker(workerId);
+
+
+        if (!worker) {
+
+          return res.status(403).json({
+            success: false,
+            message:
+              "Worker account is not active.",
+          });
+
+        }
+
+
         await Notification.updateMany(
           {
-            workerId: req.params.workerId,
+            workerId: worker._id,
             isRead: false,
           },
           {
-            isRead: true,
+            $set: {
+              isRead: true,
+            },
           }
         );
 
 
-        res.json({
+        return res.json({
           success: true,
-          message: "All notifications marked as read",
+          message:
+            "All notifications marked as read",
         });
 
 
@@ -184,9 +286,11 @@ export function createNotificationRouter() {
           error
         );
 
-        res.status(500).json({
+
+        return res.status(500).json({
           success: false,
-          message: "Unable to update notifications",
+          message:
+            "Unable to update notifications",
         });
 
       }
@@ -197,3 +301,4 @@ export function createNotificationRouter() {
 
   return router;
 }
+

@@ -1,3 +1,4 @@
+
 import { Notification } from "../models/Notification.js";
 
 
@@ -6,7 +7,29 @@ import { Notification } from "../models/Notification.js";
 // ===============================
 
 export async function createJobNotification(worker, job) {
+
   try {
+
+    // =====================================================
+    // ONLY PAID + ACTIVE WORKERS CAN RECEIVE NOTIFICATION
+    // =====================================================
+
+    if (
+      worker.paymentStatus !== "PAID" ||
+      worker.status !== "Active"
+    ) {
+
+      console.log(
+        `⛔ Notification skipped for worker: ${worker.name} - Payment/Status not active`
+      );
+
+      return null;
+    }
+
+
+    // =====================================================
+    // CREATE NOTIFICATION
+    // =====================================================
 
     const notification = await Notification.create({
 
@@ -16,15 +39,19 @@ export async function createJobNotification(worker, job) {
 
       title: "New Job Available",
 
-      message: `${job.workType} job available in ${job.district}`,
+      message:
+        `${job.workType} job available in ${job.district}`,
 
     });
+
 
     console.log(
       `🔔 Notification created for worker: ${worker.name}`
     );
 
+
     return notification;
+
 
   } catch (error) {
 
@@ -36,3 +63,4 @@ export async function createJobNotification(worker, job) {
     return null;
   }
 }
+

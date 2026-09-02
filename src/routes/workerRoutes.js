@@ -12,8 +12,26 @@ import {
   resendWorkerLoginOtp,
 } from "../controllers/workerController.js";
 
+import {
+  makeWorkerPaymentController,
+} from "../controllers/workerPaymentController.js";
+
+import { createPhonePeClient } from "../config/phonepe.js";
+
 export function createWorkerRouter() {
   const router = express.Router();
+
+  // =========================
+  // PhonePe
+  // =========================
+
+  const phonepeClient =
+    createPhonePeClient();
+
+  const workerPaymentController =
+    makeWorkerPaymentController(
+      phonepeClient
+    );
 
   // =========================
   // Upload Directory
@@ -28,39 +46,55 @@ export function createWorkerRouter() {
   }
 
   // =========================
-  // Multer Storage
+  // Multer
   // =========================
 
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadDir);
-    },
+  const storage =
+    multer.diskStorage({
 
-    filename: (req, file, cb) => {
-      const uniqueName =
-        Date.now() +
-        "-" +
-        Math.round(Math.random() * 1e9) +
-        path.extname(file.originalname);
+      destination: (
+        req,
+        file,
+        cb
+      ) => {
+        cb(null, uploadDir);
+      },
 
-      cb(null, uniqueName);
-    },
-  });
+      filename: (
+        req,
+        file,
+        cb
+      ) => {
+
+        const uniqueName =
+          Date.now() +
+          "-" +
+          Math.round(
+            Math.random() * 1e9
+          ) +
+          path.extname(
+            file.originalname
+          );
+
+        cb(
+          null,
+          uniqueName
+        );
+      },
+    });
+
+  const upload =
+    multer({
+      storage,
+
+      limits: {
+        fileSize:
+          5 * 1024 * 1024,
+      },
+    });
 
   // =========================
-  // Multer Upload
-  // =========================
-
-  const upload = multer({
-    storage,
-
-    limits: {
-      fileSize: 5 * 1024 * 1024,
-    },
-  });
-
-  // =========================
-  // Register Worker
+  // REGISTER
   // =========================
 
   router.post(
@@ -70,7 +104,21 @@ export function createWorkerRouter() {
   );
 
   // =========================
-  // Get All Workers
+  // WORKER ₹250 PAYMENT
+  // =========================
+
+  router.post(
+    "/workers/payment/create",
+    workerPaymentController.createWorkerPayment
+  );
+
+  router.get(
+    "/worker-payment/check-status",
+    workerPaymentController.checkWorkerPaymentStatus
+  );
+
+  // =========================
+  // WORKERS
   // =========================
 
   router.get(
@@ -78,43 +126,44 @@ export function createWorkerRouter() {
     getWorkers
   );
 
-  // =========================
-  // Get Worker By ID
-  // =========================
-
   router.get(
     "/workers/:id",
     getWorkerById
   );
 
-  // =====================================================
-// WORKER LOGIN
-// =====================================================
-
-router.post(
-  "/workers/login/send-otp",
-  sendWorkerLoginOtp
-);
-
-router.post(
-  "/workers/login/verify-otp",
-  verifyWorkerLoginOtp
-);
-
-router.post(
-  "/workers/login/resend-otp",
-  resendWorkerLoginOtp
-);
   // =========================
-  // Test Worker Route
+  // LOGIN
   // =========================
 
-  router.get("/workers/test", (req, res) => {
-    res.json({
-      success: true,
-      message: "Worker route is working",
-    });
-  });
+  router.post(
+    "/workers/login/send-otp",
+    sendWorkerLoginOtp
+  );
+
+  router.post(
+    "/workers/login/verify-otp",
+    verifyWorkerLoginOtp
+  );
+
+  router.post(
+    "/workers/login/resend-otp",
+    resendWorkerLoginOtp
+  );
+
+  // =========================
+  // TEST
+  // =========================
+
+  router.get(
+    "/workers/test",
+    (req, res) => {
+      res.json({
+        success: true,
+        message:
+          "Worker route is working",
+      });
+    }
+  );
 
   return router;
 }

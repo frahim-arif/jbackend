@@ -10,11 +10,8 @@ const workerSchema = new mongoose.Schema(
     mobile: {
       type: String,
       trim: true,
+      index: true,
     },
-
-    // =====================================================
-    // WORKER LOCATION
-    // =====================================================
 
     state: {
       type: String,
@@ -37,9 +34,39 @@ const workerSchema = new mongoose.Schema(
 
     kycDocument: String,
 
+    // =====================================================
+    // WORKER STATUS
+    // =====================================================
+
     status: {
       type: String,
+      enum: ["Pending", "Active", "Blocked"],
       default: "Pending",
+    },
+
+    // =====================================================
+    // PAYMENT
+    // =====================================================
+
+    paymentStatus: {
+      type: String,
+      enum: ["PENDING", "PAID", "FAILED"],
+      default: "PENDING",
+    },
+
+    paymentAmount: {
+      type: Number,
+      default: 25000, // ₹250 in paise
+    },
+
+    merchantOrderId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+
+    paidAt: {
+      type: Date,
     },
 
     createdAt: {
@@ -49,8 +76,11 @@ const workerSchema = new mongoose.Schema(
   },
   {
     versionKey: false,
+    timestamps: true,
   }
 );
 
-export const Worker =
-  mongoose.model("Worker", workerSchema);
+export const Worker = mongoose.model(
+  "Worker",
+  workerSchema
+);

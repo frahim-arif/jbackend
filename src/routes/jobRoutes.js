@@ -1,3 +1,4 @@
+
 import { Router } from "express";
 
 import { Job } from "../models/Job.js";
@@ -20,14 +21,17 @@ export function createJobRouter() {
         createdAt: -1,
       });
 
-      res.json({
+      return res.json({
         success: true,
         jobs,
       });
     } catch (e) {
-      console.error("Error fetching jobs:", e);
+      console.error(
+        "Error fetching jobs:",
+        e
+      );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: "Error fetching jobs",
       });
@@ -118,40 +122,95 @@ export function createJobRouter() {
         },
       });
 
-      console.log("=================================");
-      console.log("NEW JOB CREATED");
-      console.log("Job ID:", job._id);
-      console.log("State:", state);
-      console.log("District:", district);
-      console.log("Work Type:", workType);
-      console.log("Location:", job.location);
-      console.log("=================================");
+      // =================================================
+      // JOB CREATED LOG
+      // =================================================
+
+      console.log(
+        "================================="
+      );
+
+      console.log(
+        "NEW JOB CREATED"
+      );
+
+      console.log(
+        "Job ID:",
+        job._id
+      );
+
+      console.log(
+        "State:",
+        state
+      );
+
+      console.log(
+        "District:",
+        district
+      );
+
+      console.log(
+        "Work Type:",
+        workType
+      );
+
+      console.log(
+        "Location:",
+        job.location
+      );
+
+      console.log(
+        "================================="
+      );
 
       // =================================================
       // FIND MATCHING WORKERS
+      // =================================================
+      //
+      // IMPORTANT:
+      //
+      // Only workers who:
+      //
+      // 1. Paid ₹250
+      // 2. paymentStatus = PAID
+      // 3. status = Active
+      // 4. Same state
+      // 5. Same district
+      // 6. Same work type
+      //
+      // will receive the notification.
+      //
       // =================================================
 
       const workers = await Worker.find({
         state: state,
         district: district,
         workType: workType,
-        status: {
-          $ne: "Rejected",
-        },
+
+        paymentStatus: "PAID",
+
+        status: "Active",
       });
 
       console.log(
-        `🔔 Matching workers: ${workers.length}`
+        `🔔 Paid + Active matching workers: ${workers.length}`
       );
 
+      // =================================================
+      // MATCHING WORKERS LOG
+      // =================================================
+
       console.log(
-        "Matching Workers:",
+        "Matching Paid Workers:",
         workers.map((worker) => ({
           id: worker._id,
           name: worker.name,
           state: worker.state,
           district: worker.district,
           workType: worker.workType,
+          paymentStatus:
+            worker.paymentStatus,
+          status: worker.status,
         }))
       );
 
@@ -162,14 +221,21 @@ export function createJobRouter() {
       let notifiedWorkers = 0;
 
       for (const worker of workers) {
-        const notification =
-          await createJobNotification(
-            worker,
-            job
-          );
+        try {
+          const notification =
+            await createJobNotification(
+              worker,
+              job
+            );
 
-        if (notification) {
-          notifiedWorkers++;
+          if (notification) {
+            notifiedWorkers++;
+          }
+        } catch (notificationError) {
+          console.error(
+            `Notification failed for worker ${worker._id}:`,
+            notificationError
+          );
         }
       }
 
@@ -179,11 +245,17 @@ export function createJobRouter() {
 
       return res.json({
         success: true,
-        message: "Job created successfully",
+
+        message:
+          "Job created successfully",
+
         job,
+
+        matchedWorkers:
+          workers.length,
+
         notifiedWorkers,
       });
-
     } catch (e) {
       console.error(
         "Error creating job:",
@@ -192,7 +264,8 @@ export function createJobRouter() {
 
       return res.status(500).json({
         success: false,
-        message: "Error creating job",
+        message:
+          "Error creating job",
         error: e.message,
       });
     }
@@ -220,9 +293,9 @@ export function createJobRouter() {
 
         return res.json({
           success: true,
-          message: "Job deleted successfully",
+          message:
+            "Job deleted successfully",
         });
-
       } catch (e) {
         console.error(
           "Error deleting job:",
@@ -231,7 +304,8 @@ export function createJobRouter() {
 
         return res.status(500).json({
           success: false,
-          message: "Error deleting job",
+          message:
+            "Error deleting job",
         });
       }
     }
@@ -239,3 +313,4 @@ export function createJobRouter() {
 
   return router;
 }
+
