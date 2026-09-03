@@ -1,3 +1,4 @@
+
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -100,6 +101,17 @@ export function createWorkerRouter() {
   );
 
   // =====================================================
+  // GET WORKER BY MERCHANT ORDER ID
+  // =====================================================
+  // Payment success ke baad Success.jsx
+  // merchantOrderId se workerId recover karega.
+
+  router.get(
+    "/workers/payment-by-order/:merchantOrderId",
+    workerPaymentController.getWorkerByMerchantOrderId
+  );
+
+  // =====================================================
   // WORKERS
   // =====================================================
 
@@ -129,3 +141,4 @@ export function createWorkerRouter() {
 
   return router;
 }
+

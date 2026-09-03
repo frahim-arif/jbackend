@@ -53,8 +53,7 @@ export function makeWorkerPaymentController(client) {
         // CREATE UNIQUE MERCHANT ORDER ID
         // -------------------------------------------------
 
-        const merchantOrderId =
-          `WORKER_${randomUUID()}`;
+        const merchantOrderId = `WORKER_${randomUUID()}`;
 
         // -------------------------------------------------
         // SAVE PAYMENT
@@ -73,17 +72,13 @@ export function makeWorkerPaymentController(client) {
         // SAVE ORDER ID IN WORKER
         // -------------------------------------------------
 
-        worker.merchantOrderId =
-          merchantOrderId;
+        worker.merchantOrderId = merchantOrderId;
 
-        worker.paymentAmount =
-          WORKER_REGISTRATION_AMOUNT;
+        worker.paymentAmount = WORKER_REGISTRATION_AMOUNT;
 
-        worker.paymentStatus =
-          "PENDING";
+        worker.paymentStatus = "PENDING";
 
-        worker.status =
-          "Pending";
+        worker.status = "Pending";
 
         await worker.save();
 
@@ -103,25 +98,17 @@ export function makeWorkerPaymentController(client) {
         const request =
           StandardCheckoutPayRequest
             .builder()
-            .merchantOrderId(
-              merchantOrderId
-            )
-            .amount(
-              WORKER_REGISTRATION_AMOUNT
-            )
-            .redirectUrl(
-              statusCallback
-            )
+            .merchantOrderId(merchantOrderId)
+            .amount(WORKER_REGISTRATION_AMOUNT)
+            .redirectUrl(statusCallback)
             .build();
 
-        const response =
-          await client.pay(request);
+        const response = await client.pay(request);
 
         if (!response?.redirectUrl) {
           return res.status(500).json({
             success: false,
-            message:
-              "PhonePe checkout URL not received",
+            message: "PhonePe checkout URL not received",
           });
         }
 
@@ -131,8 +118,7 @@ export function makeWorkerPaymentController(client) {
 
         return res.status(200).json({
           success: true,
-          checkoutPageUrl:
-            response.redirectUrl,
+          checkoutPageUrl: response.redirectUrl,
           merchantOrderId,
         });
       } catch (error) {
@@ -143,8 +129,74 @@ export function makeWorkerPaymentController(client) {
 
         return res.status(500).json({
           success: false,
-          message:
-            "Unable to create worker payment",
+          message: "Unable to create worker payment",
+        });
+      }
+    },
+
+    // =====================================================
+    // GET WORKER BY MERCHANT ORDER ID
+    // =====================================================
+    // Payment ke baad Success.jsx isi endpoint se
+    // workerId recover karega.
+
+    async getWorkerByMerchantOrderId(req, res) {
+      try {
+        const { merchantOrderId } = req.params;
+
+        if (!merchantOrderId) {
+          return res.status(400).json({
+            success: false,
+            message: "Merchant Order ID required",
+          });
+        }
+
+        // -------------------------------------------------
+        // FIND PAYMENT + WORKER
+        // -------------------------------------------------
+
+        const payment =
+          await WorkerPayment.findOne({
+            merchantOrderId,
+          }).populate("workerId");
+
+        if (!payment || !payment.workerId) {
+          return res.status(404).json({
+            success: false,
+            message: "Worker payment not found",
+          });
+        }
+
+        const worker = payment.workerId;
+
+        // -------------------------------------------------
+        // RESPONSE
+        // -------------------------------------------------
+
+        return res.status(200).json({
+          success: true,
+
+          worker: {
+            _id: worker._id,
+            name: worker.name,
+            mobile: worker.mobile,
+            state: worker.state,
+            district: worker.district,
+            workType: worker.workType,
+            status: worker.status,
+            paymentStatus: worker.paymentStatus,
+            merchantOrderId: worker.merchantOrderId,
+          },
+        });
+      } catch (error) {
+        console.error(
+          "Get Worker By Merchant Order ID Error:",
+          error
+        );
+
+        return res.status(500).json({
+          success: false,
+          message: "Unable to find worker",
         });
       }
     },
@@ -155,8 +207,7 @@ export function makeWorkerPaymentController(client) {
 
     async checkWorkerPaymentStatus(req, res) {
       try {
-        const { merchantOrderId } =
-          req.query;
+        const { merchantOrderId } = req.query;
 
         if (!merchantOrderId) {
           return res
@@ -188,8 +239,7 @@ export function makeWorkerPaymentController(client) {
             merchantOrderId
           );
 
-        const status =
-          response?.state;
+        const status = response?.state;
 
         console.log(
           "Worker PhonePe Payment Status:",
@@ -204,11 +254,9 @@ export function makeWorkerPaymentController(client) {
         // UPDATE PAYMENT STATUS
         // -------------------------------------------------
 
-        payment.status =
-          status || "PENDING";
+        payment.status = status || "PENDING";
 
-        payment.lastWebhook =
-          response;
+        payment.lastWebhook = response;
 
         // =================================================
         // PAYMENT COMPLETED
@@ -216,8 +264,7 @@ export function makeWorkerPaymentController(client) {
 
         if (status === "COMPLETED") {
           // ------------------------------------------------
-          // IMPORTANT:
-          // Verify amount is exactly ₹250
+          // VERIFY AMOUNT
           // ------------------------------------------------
 
           if (
@@ -229,8 +276,7 @@ export function makeWorkerPaymentController(client) {
               response?.amount
             );
 
-            payment.status =
-              "FAILED";
+            payment.status = "FAILED";
 
             await payment.save();
 
@@ -251,8 +297,7 @@ export function makeWorkerPaymentController(client) {
             );
 
           if (!worker) {
-            payment.status =
-              "FAILED";
+            payment.status = "FAILED";
 
             await payment.save();
 
@@ -265,14 +310,12 @@ export function makeWorkerPaymentController(client) {
           // ACTIVATE WORKER
           // ------------------------------------------------
 
-          worker.paymentStatus =
-            "PAID";
+          worker.paymentStatus = "PAID";
 
           worker.paymentAmount =
             WORKER_REGISTRATION_AMOUNT;
 
-          worker.status =
-            "Active";
+          worker.status = "Active";
 
           worker.paidAt =
             worker.paidAt ||
@@ -287,8 +330,7 @@ export function makeWorkerPaymentController(client) {
           // UPDATE PAYMENT
           // ------------------------------------------------
 
-          payment.status =
-            "COMPLETED";
+          payment.status = "COMPLETED";
 
           payment.transactionId =
             response.transactionId ||
@@ -298,8 +340,7 @@ export function makeWorkerPaymentController(client) {
             payment.paidAt ||
             new Date();
 
-          payment.lastWebhook =
-            response;
+          payment.lastWebhook = response;
 
           await payment.save();
 
@@ -313,26 +354,20 @@ export function makeWorkerPaymentController(client) {
         // PAYMENT FAILED
         // =================================================
 
-        else if (
-          status === "FAILED"
-        ) {
-          payment.status =
-            "FAILED";
+        else if (status === "FAILED") {
+          payment.status = "FAILED";
 
           await payment.save();
 
-          // Worker ko Active nahi karna
           const worker =
             await Worker.findById(
               payment.workerId
             );
 
           if (worker) {
-            worker.paymentStatus =
-              "FAILED";
+            worker.paymentStatus = "FAILED";
 
-            worker.status =
-              "Pending";
+            worker.status = "Pending";
 
             await worker.save();
           }
@@ -343,8 +378,7 @@ export function makeWorkerPaymentController(client) {
         // =================================================
 
         else {
-          payment.status =
-            "PENDING";
+          payment.status = "PENDING";
 
           await payment.save();
         }
