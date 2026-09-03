@@ -5,7 +5,7 @@ import { StandardCheckoutPayRequest } from "pg-sdk-node";
 import { Worker } from "../models/Worker.js";
 import { WorkerPayment } from "../models/WorkerPayment.js";
 
-const WORKER_REGISTRATION_AMOUNT = 25000; // ₹250 in paise
+const WORKER_REGISTRATION_AMOUNT = 50; // ₹250 in paise
 
 export function makeWorkerPaymentController(client) {
   return {
