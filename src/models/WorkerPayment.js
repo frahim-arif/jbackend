@@ -20,7 +20,7 @@ const workerPaymentSchema = new mongoose.Schema(
     amount: {
       type: Number,
       required: true,
-      default: 25000,
+      default: 50,
     },
 
     mobileNumber: {
