@@ -16,6 +16,8 @@ import webhookRoutes from "./routes/webhook.routes.js";
 import { createWorkerRouter } from "./routes/workerRoutes.js";
 import { createNotificationRouter } from "./routes/notificationRoutes.js";
 import { createLocationRouter } from "./routes/location.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import createAdminRoutes from "./routes/createAdmin.routes.js";
 
 export async function createApp() {
   // =====================================================
@@ -45,6 +47,14 @@ export async function createApp() {
   app.use(
     cors()
   );
+  // =====================================================
+// ADMIN ROUTES
+// =====================================================
+
+app.use("/admin", adminRoutes);
+
+// TEMPORARY - CREATE ADMIN
+app.use("/", createAdminRoutes);
 
   // =====================================================
   // PHONEPE - JOB APPLICATION PAYMENT
@@ -64,6 +74,7 @@ export async function createApp() {
       controller
     )
   );
+  
 
   // =====================================================
   // WEBHOOK ROUTES
