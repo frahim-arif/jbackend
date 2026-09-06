@@ -15,21 +15,12 @@ export async function adminAuth(req, res, next) {
     }
 
     const token = authHeader.startsWith("Bearer ")
-      ? authHeader.split(" ")[1]
+      ? authHeader.substring(7)
       : authHeader;
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authorization token",
-      });
-    }
 
     const decoded = jwt.verify(token, JWT_SECRET);
 
-    const admin = await Admin.findById(decoded.id).select(
-      "-password"
-    );
+    const admin = await Admin.findById(decoded.id).select("-password");
 
     if (!admin) {
       return res.status(401).json({
@@ -53,7 +44,7 @@ export async function adminAuth(req, res, next) {
 
     return res.status(401).json({
       success: false,
-      message: "Invalid or expired token",
+      message: "Invalid or expired admin token",
     });
   }
 }
