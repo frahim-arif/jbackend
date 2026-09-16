@@ -9,7 +9,8 @@ import { adminAuth } from "../middleware/adminAuth.js";
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "SECRET_KEY";
+const JWT_SECRET =
+  process.env.JWT_SECRET || "SECRET_KEY";
 
 // =====================================================
 // ADMIN LOGIN
@@ -27,7 +28,9 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const admin = await Admin.findOne({ username });
+    const admin = await Admin.findOne({
+      username: username.trim(),
+    });
 
     if (!admin) {
       return res.status(401).json({
@@ -78,7 +81,10 @@ router.post("/login", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("ADMIN LOGIN ERROR:", error);
+    console.error(
+      "ADMIN LOGIN ERROR:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -92,139 +98,215 @@ router.post("/login", async (req, res) => {
 // GET /admin/me
 // =====================================================
 
-router.get("/me", adminAuth, async (req, res) => {
-  try {
-    res.json({
-      success: true,
-      admin: {
-        id: req.admin._id,
-        username: req.admin.username,
-        role: req.admin.role || "admin",
-      },
-    });
-  } catch (error) {
-    console.error("ADMIN ME ERROR:", error);
+router.get(
+  "/me",
+  adminAuth,
+  async (req, res) => {
+    try {
+      return res.json({
+        success: true,
+        admin: {
+          id: req.admin._id,
+          username: req.admin.username,
+          role: req.admin.role || "admin",
+        },
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN ME ERROR:",
+        error
+      );
 
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
+      return res.status(500).json({
+        success: false,
+        message: "Server error",
+      });
+    }
   }
-});
+);
 
 // =====================================================
 // ADMIN STATS
 // GET /admin/stats
+//
+// GLOBAL STATS
+// No state/district hard-coding
 // =====================================================
 
-router.get("/stats", adminAuth, async (req, res) => {
-  try {
-    const [
-      totalWorkers,
-      paidWorkers,
-      pendingPayment,
-      activeWorkers,
-      pendingWorkers,
-      blockedWorkers,
-      upWorkers,
-      noidaWorkers,
-      verificationPending,
-      verificationVerified,
-      verificationRejected,
-      entryLevelWorkers,
-      intermediateWorkers,
-      expertWorkers,
-    ] = await Promise.all([
-      Worker.countDocuments(),
-
-      Worker.countDocuments({
-        paymentStatus: "PAID",
-      }),
-
-      Worker.countDocuments({
-        paymentStatus: "PENDING",
-      }),
-
-      Worker.countDocuments({
-        status: "Active",
-      }),
-
-      Worker.countDocuments({
-        status: "Pending",
-      }),
-
-      Worker.countDocuments({
-        status: "Blocked",
-      }),
-
-      Worker.countDocuments({
-        state: "Uttar Pradesh",
-      }),
-
-      Worker.countDocuments({
-        state: "Uttar Pradesh",
-        district: "Noida",
-      }),
-
-      Worker.countDocuments({
-        verificationStatus: "Pending",
-      }),
-
-      Worker.countDocuments({
-        verificationStatus: "Verified",
-      }),
-
-      Worker.countDocuments({
-        verificationStatus: "Rejected",
-      }),
-
-      Worker.countDocuments({
-        skillLevel: "Entry Level",
-      }),
-
-      Worker.countDocuments({
-        skillLevel: "Intermediate",
-      }),
-
-      Worker.countDocuments({
-        skillLevel: "Expert",
-      }),
-    ]);
-
-    res.json({
-      success: true,
-
-      stats: {
+router.get(
+  "/stats",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const [
         totalWorkers,
-
         paidWorkers,
         pendingPayment,
+        failedPayment,
 
         activeWorkers,
         pendingWorkers,
         blockedWorkers,
 
-        upWorkers,
-        noidaWorkers,
+        pendingVerification,
+        underReview,
+        verifiedWorkers,
+        needMoreInformation,
+        rejectedWorkers,
 
-        verificationPending,
-        verificationVerified,
-        verificationRejected,
-
-        entryLevelWorkers,
-        intermediateWorkers,
         expertWorkers,
-      },
-    });
-  } catch (error) {
-    console.error("ADMIN STATS ERROR:", error);
+        skilledWorkers,
+        semiSkilledWorkers,
+        helperWorkers,
 
-    res.status(500).json({
-      success: false,
-      message: "Failed to load statistics",
-    });
+        kycVerifiedWorkers,
+        skillVerifiedWorkers,
+      ] = await Promise.all([
+        // ---------------------------------------------
+        // WORKERS
+        // ---------------------------------------------
+
+        Worker.countDocuments(),
+
+        // ---------------------------------------------
+        // PAYMENT
+        // ---------------------------------------------
+
+        Worker.countDocuments({
+          paymentStatus: "PAID",
+        }),
+
+        Worker.countDocuments({
+          paymentStatus: "PENDING",
+        }),
+
+        Worker.countDocuments({
+          paymentStatus: "FAILED",
+        }),
+
+        // ---------------------------------------------
+        // ACCOUNT STATUS
+        // ---------------------------------------------
+
+        Worker.countDocuments({
+          status: "Active",
+        }),
+
+        Worker.countDocuments({
+          status: "Pending",
+        }),
+
+        Worker.countDocuments({
+          status: "Blocked",
+        }),
+
+        // ---------------------------------------------
+        // VERIFICATION
+        // ---------------------------------------------
+
+        Worker.countDocuments({
+          verificationStatus: "Pending",
+        }),
+
+        Worker.countDocuments({
+          verificationStatus: "Under Review",
+        }),
+
+        Worker.countDocuments({
+          verificationStatus: "Verified",
+        }),
+
+        Worker.countDocuments({
+          verificationStatus:
+            "Need More Information",
+        }),
+
+        Worker.countDocuments({
+          verificationStatus: "Rejected",
+        }),
+
+        // ---------------------------------------------
+        // SKILL LEVEL
+        // ---------------------------------------------
+
+        Worker.countDocuments({
+          skillLevel: "Expert",
+        }),
+
+        Worker.countDocuments({
+          skillLevel: "Skilled",
+        }),
+
+        Worker.countDocuments({
+          skillLevel: "Semi-Skilled",
+        }),
+
+        Worker.countDocuments({
+          skillLevel: "Helper",
+        }),
+
+        // ---------------------------------------------
+        // KYC / SKILL VERIFIED
+        // ---------------------------------------------
+
+        Worker.countDocuments({
+          kycVerified: true,
+        }),
+
+        Worker.countDocuments({
+          skillVerified: true,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+
+        stats: {
+          // Workers
+          totalWorkers,
+
+          // Payment
+          paidWorkers,
+          pendingPayment,
+          failedPayment,
+
+          // Account
+          activeWorkers,
+          pendingWorkers,
+          blockedWorkers,
+
+          // Verification
+          pendingVerification,
+          underReview,
+          verifiedWorkers,
+          needMoreInformation,
+          rejectedWorkers,
+
+          // Skills
+          expertWorkers,
+          skilledWorkers,
+          semiSkilledWorkers,
+          helperWorkers,
+
+          // Verification checks
+          kycVerifiedWorkers,
+          skillVerifiedWorkers,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN STATS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load statistics",
+      });
+    }
   }
-});
+);
 
 // =====================================================
 // GET ALL WORKERS
@@ -232,175 +314,205 @@ router.get("/stats", adminAuth, async (req, res) => {
 // GET /admin/workers
 //
 // Filters:
-// ?state=Uttar Pradesh
-// ?district=Noida
-// ?workType=Painter
-// ?paymentStatus=PAID
-// ?status=Active
-// ?verificationStatus=Pending
-// ?skillLevel=Expert
-// ?search=rajesh
+//
+// state
+// district
+// workType
+// paymentStatus
+// status
+// verificationStatus
+// skillLevel
+// search
 // =====================================================
 
-router.get("/workers", adminAuth, async (req, res) => {
-  try {
-    const {
-      state,
-      district,
-      workType,
-      paymentStatus,
-      status,
-      verificationStatus,
-      skillLevel,
-      search,
-    } = req.query;
+router.get(
+  "/workers",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const {
+        state,
+        district,
+        workType,
+        paymentStatus,
+        status,
+        verificationStatus,
+        skillLevel,
+        search,
+      } = req.query;
 
-    const filter = {};
+      const filter = {};
 
-    // -----------------------------------------------
-    // STATE
-    // -----------------------------------------------
+      // ---------------------------------------------
+      // STATE
+      // ---------------------------------------------
 
-    if (state) {
-      filter.state = state.trim();
-    }
-
-    // -----------------------------------------------
-    // DISTRICT
-    // -----------------------------------------------
-
-    if (district) {
-      filter.district = district.trim();
-    }
-
-    // -----------------------------------------------
-    // WORK TYPE
-    // -----------------------------------------------
-
-    if (workType) {
-      filter.workType = workType.trim();
-    }
-
-    // -----------------------------------------------
-    // PAYMENT STATUS
-    // -----------------------------------------------
-
-    if (paymentStatus) {
-      filter.paymentStatus = paymentStatus.toUpperCase();
-    }
-
-    // -----------------------------------------------
-    // WORKER STATUS
-    // -----------------------------------------------
-
-    if (status) {
-      filter.status = status;
-    }
-
-    // -----------------------------------------------
-    // VERIFICATION STATUS
-    // -----------------------------------------------
-
-    if (verificationStatus) {
-      filter.verificationStatus = verificationStatus;
-    }
-
-    // -----------------------------------------------
-    // SKILL LEVEL
-    // -----------------------------------------------
-
-    if (skillLevel) {
-      filter.skillLevel = skillLevel;
-    }
-
-    // -----------------------------------------------
-    // SEARCH
-    // Name / Mobile / Worker ID
-    // -----------------------------------------------
-
-    if (search) {
-      const searchText = search.trim();
-
-      const searchConditions = [
-        {
-          name: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-        {
-          mobile: {
-            $regex: searchText,
-            $options: "i",
-          },
-        },
-      ];
-
-      // MongoDB ObjectId search
-      if (/^[0-9a-fA-F]{24}$/.test(searchText)) {
-        searchConditions.push({
-          _id: searchText,
-        });
+      if (state?.trim()) {
+        filter.state = state.trim();
       }
 
-      filter.$or = searchConditions;
-    }
+      // ---------------------------------------------
+      // DISTRICT
+      // ---------------------------------------------
 
-    const workers = await Worker.find(filter)
-      .select(
-        [
-          "name",
-          "mobile",
-          "state",
-          "district",
-          "workType",
-          "kycType",
-          "kycNumber",
-          "kycDocument",
-          "status",
-          "paymentStatus",
-          "paymentAmount",
-          "merchantOrderId",
-          "paidAt",
-          "verificationStatus",
-          "skillLevel",
-          "verificationNotes",
-          "verifiedAt",
-          "verifiedBy",
-          "createdAt",
-          "updatedAt",
-        ].join(" ")
-      )
-      .sort({
-        createdAt: -1,
+      if (district?.trim()) {
+        filter.district = district.trim();
+      }
+
+      // ---------------------------------------------
+      // WORK TYPE
+      // ---------------------------------------------
+
+      if (workType?.trim()) {
+        filter.workType = workType.trim();
+      }
+
+      // ---------------------------------------------
+      // PAYMENT STATUS
+      // ---------------------------------------------
+
+      if (paymentStatus?.trim()) {
+        filter.paymentStatus =
+          paymentStatus.trim().toUpperCase();
+      }
+
+      // ---------------------------------------------
+      // ACCOUNT STATUS
+      // ---------------------------------------------
+
+      if (status?.trim()) {
+        filter.status = status.trim();
+      }
+
+      // ---------------------------------------------
+      // VERIFICATION STATUS
+      // ---------------------------------------------
+
+      if (verificationStatus?.trim()) {
+        filter.verificationStatus =
+          verificationStatus.trim();
+      }
+
+      // ---------------------------------------------
+      // SKILL LEVEL
+      // ---------------------------------------------
+
+      if (skillLevel?.trim()) {
+        filter.skillLevel =
+          skillLevel.trim();
+      }
+
+      // ---------------------------------------------
+      // SEARCH
+      // Name / Mobile / Worker ID
+      // ---------------------------------------------
+
+      if (search?.trim()) {
+        const searchText =
+          search.trim();
+
+        const searchConditions = [
+          {
+            name: {
+              $regex: searchText,
+              $options: "i",
+            },
+          },
+          {
+            mobile: {
+              $regex: searchText,
+              $options: "i",
+            },
+          },
+        ];
+
+        if (
+          /^[0-9a-fA-F]{24}$/.test(
+            searchText
+          )
+        ) {
+          searchConditions.push({
+            _id: searchText,
+          });
+        }
+
+        filter.$or =
+          searchConditions;
+      }
+
+      const workers =
+        await Worker.find(filter)
+          .select(
+            [
+              "name",
+              "mobile",
+              "state",
+              "district",
+              "workType",
+
+              "kycType",
+              "kycNumber",
+              "kycDocument",
+
+              "status",
+
+              "paymentStatus",
+              "paymentAmount",
+              "merchantOrderId",
+              "paidAt",
+
+              "verificationStatus",
+              "skillLevel",
+              "verificationScore",
+              "experienceYears",
+              "kycVerified",
+              "skillVerified",
+              "adminNotes",
+              "verifiedAt",
+              "verifiedBy",
+
+              "createdAt",
+              "updatedAt",
+            ].join(" ")
+          )
+          .sort({
+            createdAt: -1,
+          });
+
+      return res.json({
+        success: true,
+        count: workers.length,
+
+        filters: {
+          state: state || null,
+          district: district || null,
+          workType: workType || null,
+          paymentStatus:
+            paymentStatus || null,
+          status: status || null,
+          verificationStatus:
+            verificationStatus || null,
+          skillLevel:
+            skillLevel || null,
+          search: search || null,
+        },
+
+        workers,
       });
+    } catch (error) {
+      console.error(
+        "ADMIN WORKERS ERROR:",
+        error
+      );
 
-    res.json({
-      success: true,
-      count: workers.length,
-
-      filters: {
-        state: state || null,
-        district: district || null,
-        workType: workType || null,
-        paymentStatus: paymentStatus || null,
-        status: status || null,
-        verificationStatus: verificationStatus || null,
-        skillLevel: skillLevel || null,
-        search: search || null,
-      },
-
-      workers,
-    });
-  } catch (error) {
-    console.error("ADMIN WORKERS ERROR:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to load workers",
-    });
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load workers",
+      });
+    }
   }
-});
+);
 
 // =====================================================
 // GET SINGLE WORKER
@@ -413,18 +525,20 @@ router.get(
   adminAuth,
   async (req, res) => {
     try {
-      const worker = await Worker.findById(
-        req.params.id
-      );
+      const worker =
+        await Worker.findById(
+          req.params.id
+        );
 
       if (!worker) {
         return res.status(404).json({
           success: false,
-          message: "Worker not found",
+          message:
+            "Worker not found",
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         worker,
       });
@@ -434,28 +548,19 @@ router.get(
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message: "Failed to load worker",
+        message:
+          "Failed to load worker",
       });
     }
   }
 );
 
 // =====================================================
-// UPDATE WORKER STATUS
+// UPDATE WORKER ACCOUNT STATUS
 //
 // PATCH /admin/workers/:id/status
-//
-// Body:
-// {
-//   "status": "Active"
-// }
-//
-// Allowed:
-// Pending
-// Active
-// Blocked
 // =====================================================
 
 router.patch(
@@ -463,7 +568,8 @@ router.patch(
   adminAuth,
   async (req, res) => {
     try {
-      const { status } = req.body;
+      const { status } =
+        req.body;
 
       const allowedStatuses = [
         "Pending",
@@ -471,7 +577,11 @@ router.patch(
         "Blocked",
       ];
 
-      if (!allowedStatuses.includes(status)) {
+      if (
+        !allowedStatuses.includes(
+          status
+        )
+      ) {
         return res.status(400).json({
           success: false,
           message:
@@ -479,26 +589,32 @@ router.patch(
         });
       }
 
-      const worker = await Worker.findByIdAndUpdate(
-        req.params.id,
-        {
-          status,
-        },
-        {
-          new: true,
-        }
-      );
+      const worker =
+        await Worker.findByIdAndUpdate(
+          req.params.id,
+          {
+            $set: {
+              status,
+            },
+          },
+          {
+            new: true,
+            runValidators: true,
+          }
+        );
 
       if (!worker) {
         return res.status(404).json({
           success: false,
-          message: "Worker not found",
+          message:
+            "Worker not found",
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
-        message: `Worker status changed to ${status}`,
+        message:
+          `Worker status changed to ${status}`,
         worker,
       });
     } catch (error) {
@@ -507,9 +623,10 @@ router.patch(
         error
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        message: "Failed to update worker status",
+        message:
+          "Failed to update worker status",
       });
     }
   }
@@ -519,24 +636,6 @@ router.patch(
 // UPDATE WORKER VERIFICATION
 //
 // PATCH /admin/workers/:id/verification
-//
-// Body:
-//
-// {
-//   "verificationStatus": "Verified",
-//   "skillLevel": "Expert",
-//   "verificationNotes": "8 years experience"
-// }
-//
-// verificationStatus:
-// Pending
-// Verified
-// Rejected
-//
-// skillLevel:
-// Entry Level
-// Intermediate
-// Expert
 // =====================================================
 
 router.patch(
@@ -547,26 +646,39 @@ router.patch(
       const {
         verificationStatus,
         skillLevel,
-        verificationNotes,
+        verificationScore,
+        experienceYears,
+        kycVerified,
+        skillVerified,
+        adminNotes,
       } = req.body;
 
-      // -----------------------------------------------
-      // VALIDATION
-      // -----------------------------------------------
+      // ---------------------------------------------
+      // ALLOWED VALUES
+      // ---------------------------------------------
 
       const allowedVerificationStatuses = [
         "Pending",
+        "Under Review",
         "Verified",
+        "Need More Information",
         "Rejected",
       ];
 
       const allowedSkillLevels = [
-        "Entry Level",
-        "Intermediate",
         "Expert",
+        "Skilled",
+        "Semi-Skilled",
+        "Helper",
       ];
 
+      // ---------------------------------------------
+      // VALIDATE VERIFICATION STATUS
+      // ---------------------------------------------
+
       if (
+        verificationStatus !==
+          undefined &&
         !allowedVerificationStatuses.includes(
           verificationStatus
         )
@@ -574,78 +686,211 @@ router.patch(
         return res.status(400).json({
           success: false,
           message:
-            "Invalid verification status. Use Pending, Verified or Rejected",
+            "Invalid verification status",
         });
       }
 
-      // Skill level is required when verifying
+      // ---------------------------------------------
+      // VALIDATE SKILL LEVEL
+      // ---------------------------------------------
+
       if (
-        verificationStatus === "Verified" &&
-        !allowedSkillLevels.includes(skillLevel)
+        skillLevel !==
+          undefined &&
+        skillLevel !== null &&
+        !allowedSkillLevels.includes(
+          skillLevel
+        )
       ) {
         return res.status(400).json({
           success: false,
           message:
-            "Skill level is required when worker is Verified",
+            "Invalid skill level",
         });
       }
 
-      // -----------------------------------------------
-      // FIND WORKER
-      // -----------------------------------------------
+      // ---------------------------------------------
+      // VALIDATE SCORE
+      // ---------------------------------------------
 
-      const worker = await Worker.findById(
-        req.params.id
-      );
+      let score;
+
+      if (
+        verificationScore !==
+        undefined
+      ) {
+        score =
+          Number(
+            verificationScore
+          );
+
+        if (
+          Number.isNaN(score) ||
+          score < 0 ||
+          score > 100
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Verification score must be between 0 and 100",
+          });
+        }
+      }
+
+      // ---------------------------------------------
+      // VALIDATE EXPERIENCE
+      // ---------------------------------------------
+
+      let experience;
+
+      if (
+        experienceYears !==
+        undefined
+      ) {
+        experience =
+          Number(
+            experienceYears
+          );
+
+        if (
+          Number.isNaN(
+            experience
+          ) ||
+          experience < 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Experience years must be 0 or greater",
+          });
+        }
+      }
+
+      // ---------------------------------------------
+      // FIND WORKER
+      // ---------------------------------------------
+
+      const worker =
+        await Worker.findById(
+          req.params.id
+        );
 
       if (!worker) {
         return res.status(404).json({
           success: false,
-          message: "Worker not found",
+          message:
+            "Worker not found",
         });
       }
 
-      // -----------------------------------------------
-      // ADMIN NAME
-      // -----------------------------------------------
+      // ---------------------------------------------
+      // BUILD UPDATE
+      // ---------------------------------------------
 
-      const adminUsername =
-        req.admin?.username ||
-        req.admin?.email ||
-        "Admin";
-
-      // -----------------------------------------------
-      // UPDATE DATA
-      // -----------------------------------------------
-
-      worker.verificationStatus =
-        verificationStatus;
-
-      worker.skillLevel =
-        verificationStatus === "Verified"
-          ? skillLevel
-          : null;
-
-      worker.verificationNotes =
-        typeof verificationNotes === "string"
-          ? verificationNotes.trim()
-          : "";
+      const updateData = {};
 
       if (
-        verificationStatus === "Verified"
+        verificationStatus !==
+        undefined
       ) {
-        worker.verifiedAt = new Date();
-        worker.verifiedBy = adminUsername;
-      } else {
-        worker.verifiedAt = undefined;
-        worker.verifiedBy = "";
+        updateData.verificationStatus =
+          verificationStatus;
       }
+
+      if (
+        skillLevel !==
+        undefined
+      ) {
+        updateData.skillLevel =
+          skillLevel;
+      }
+
+      if (
+        verificationScore !==
+        undefined
+      ) {
+        updateData.verificationScore =
+          score;
+      }
+
+      if (
+        experienceYears !==
+        undefined
+      ) {
+        updateData.experienceYears =
+          experience;
+      }
+
+      if (
+        kycVerified !==
+        undefined
+      ) {
+        updateData.kycVerified =
+          Boolean(
+            kycVerified
+          );
+      }
+
+      if (
+        skillVerified !==
+        undefined
+      ) {
+        updateData.skillVerified =
+          Boolean(
+            skillVerified
+          );
+      }
+
+      if (
+        adminNotes !==
+        undefined
+      ) {
+        updateData.adminNotes =
+          String(
+            adminNotes
+          ).trim();
+      }
+
+      // ---------------------------------------------
+      // VERIFIED INFORMATION
+      // ---------------------------------------------
+
+      if (
+        verificationStatus ===
+        "Verified"
+      ) {
+        updateData.verifiedAt =
+          new Date();
+
+        updateData.verifiedBy =
+          req.admin?.username ||
+          "Admin";
+      } else if (
+        verificationStatus !==
+        undefined
+      ) {
+        updateData.verifiedAt =
+          null;
+
+        updateData.verifiedBy =
+          "";
+      }
+
+      // ---------------------------------------------
+      // SAVE
+      // ---------------------------------------------
+
+      Object.assign(
+        worker,
+        updateData
+      );
 
       await worker.save();
 
       return res.json({
         success: true,
-        message: `Worker verification changed to ${verificationStatus}`,
+        message:
+          "Worker verification updated successfully",
         worker,
       });
     } catch (error) {
