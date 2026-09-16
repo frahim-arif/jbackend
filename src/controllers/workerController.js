@@ -16,6 +16,7 @@ export async function registerWorker(req, res) {
     const {
       name,
       mobile,
+      email,
       state,
       district,
       workType,
@@ -30,6 +31,7 @@ export async function registerWorker(req, res) {
     if (
       !name?.trim() ||
       !mobile?.trim() ||
+      !email?.trim() ||
       !state?.trim() ||
       !district?.trim() ||
       !workType?.trim() ||
@@ -48,13 +50,12 @@ export async function registerWorker(req, res) {
 
     const cleanName = name.trim();
     const cleanMobile = mobile.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const cleanState = state.trim();
     const cleanDistrict = district.trim();
     const cleanWorkType = workType.trim();
     const cleanKycType = kycType.trim();
-    const cleanKycNumber = kycNumber
-      .trim()
-      .toUpperCase();
+    const cleanKycNumber = kycNumber.trim().toUpperCase();
 
     // =================================================
     // MOBILE VALIDATION
@@ -63,8 +64,18 @@ export async function registerWorker(req, res) {
     if (!/^\d{10}$/.test(cleanMobile)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please enter a valid 10 digit mobile number",
+        message: "Please enter a valid 10 digit mobile number",
+      });
+    }
+
+    // =================================================
+    // EMAIL VALIDATION
+    // =================================================
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a valid email address",
       });
     }
 
@@ -89,8 +100,7 @@ export async function registerWorker(req, res) {
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please enter a valid 12 digit Aadhaar number",
+        message: "Please enter a valid 12 digit Aadhaar number",
       });
     }
 
@@ -100,20 +110,17 @@ export async function registerWorker(req, res) {
 
     if (
       cleanKycType === "PAN" &&
-      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(
-        cleanKycNumber
-      )
+      !/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(cleanKycNumber)
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please enter a valid PAN number",
+        message: "Please enter a valid PAN number",
       });
     }
 
     // =================================================
     // CHECK EXISTING WORKER
-    // =================================================
+    // =====================================================
 
     const existingWorker = await Worker.findOne({
       mobile: cleanMobile,
@@ -121,7 +128,7 @@ export async function registerWorker(req, res) {
 
     if (existingWorker) {
       // ===============================================
-      // ALREADY PAID
+      // ALREADY PAID + ACTIVE
       // ===============================================
 
       if (
@@ -143,20 +150,34 @@ export async function registerWorker(req, res) {
         success: false,
         message:
           "Registration already started. Please complete your ₹250 payment.",
-
         workerId: existingWorker._id,
-
         worker: {
           _id: existingWorker._id,
           name: existingWorker.name,
           mobile: existingWorker.mobile,
+          email: existingWorker.email,
           state: existingWorker.state,
           district: existingWorker.district,
           workType: existingWorker.workType,
           status: existingWorker.status,
-          paymentStatus:
-            existingWorker.paymentStatus,
+          paymentStatus: existingWorker.paymentStatus,
         },
+      });
+    }
+
+    // =================================================
+    // CHECK EMAIL ALREADY USED
+    // =================================================
+
+    const existingEmailWorker = await Worker.findOne({
+      email: cleanEmail,
+    });
+
+    if (existingEmailWorker) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Worker with this email address is already registered.",
       });
     }
 
@@ -171,8 +192,7 @@ export async function registerWorker(req, res) {
     if (!kycDocument) {
       return res.status(400).json({
         success: false,
-        message:
-          "Please upload your KYC document",
+        message: "Please upload your KYC document",
       });
     }
 
@@ -183,6 +203,8 @@ export async function registerWorker(req, res) {
     const worker = await Worker.create({
       name: cleanName,
       mobile: cleanMobile,
+      email: cleanEmail,
+
       state: cleanState,
       district: cleanDistrict,
       workType: cleanWorkType,
@@ -191,13 +213,20 @@ export async function registerWorker(req, res) {
       kycNumber: cleanKycNumber,
       kycDocument,
 
-      // Worker is inactive until payment.
       status: "Pending",
 
-      paymentStatus: "PENDING",
+      verificationStatus: "Pending",
+      skillLevel: null,
+      verificationScore: 0,
+      experienceYears: 0,
 
-      paymentAmount:
-        WORKER_REGISTRATION_AMOUNT,
+      kycVerified: false,
+      skillVerified: false,
+
+      adminNotes: "",
+
+      paymentStatus: "PENDING",
+      paymentAmount: WORKER_REGISTRATION_AMOUNT,
     });
 
     // =================================================
@@ -216,19 +245,17 @@ export async function registerWorker(req, res) {
         _id: worker._id,
         name: worker.name,
         mobile: worker.mobile,
+        email: worker.email,
         state: worker.state,
         district: worker.district,
         workType: worker.workType,
         status: worker.status,
-        paymentStatus:
-          worker.paymentStatus,
+        paymentStatus: worker.paymentStatus,
+        verificationStatus: worker.verificationStatus,
       },
     });
   } catch (error) {
-    console.error(
-      "Worker Registration Error:",
-      error
-    );
+    console.error("Worker Registration Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -247,7 +274,8 @@ export async function getWorkers(req, res) {
       .sort({
         createdAt: -1,
       })
-      .select("-kycNumber");
+      // Public endpoint par sensitive information hide
+      .select("-kycNumber -email");
 
     return res.status(200).json({
       success: true,
@@ -255,10 +283,7 @@ export async function getWorkers(req, res) {
       workers,
     });
   } catch (error) {
-    console.error(
-      "Get Workers Error:",
-      error
-    );
+    console.error("Get Workers Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -282,10 +307,9 @@ export async function getWorkerById(req, res) {
       });
     }
 
-    const worker =
-      await Worker.findById(id).select(
-        "-kycNumber"
-      );
+    const worker = await Worker.findById(id).select(
+      "-kycNumber -email"
+    );
 
     if (!worker) {
       return res.status(404).json({
@@ -299,10 +323,7 @@ export async function getWorkerById(req, res) {
       worker,
     });
   } catch (error) {
-    console.error(
-      "Get Worker Error:",
-      error
-    );
+    console.error("Get Worker Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -319,10 +340,6 @@ export async function sendWorkerLoginOtp(req, res) {
   try {
     const { mobile } = req.body;
 
-    // =================================================
-    // VALIDATE MOBILE
-    // =================================================
-
     if (
       !mobile ||
       !/^\d{10}$/.test(mobile.trim())
@@ -335,10 +352,6 @@ export async function sendWorkerLoginOtp(req, res) {
     }
 
     const cleanMobile = mobile.trim();
-
-    // =================================================
-    // FIND WORKER
-    // =================================================
 
     const worker = await Worker.findOne({
       mobile: cleanMobile,
@@ -353,7 +366,7 @@ export async function sendWorkerLoginOtp(req, res) {
     }
 
     // =================================================
-    // PAYMENT CHECK
+    // PAYMENT + ACTIVE CHECK
     // =================================================
 
     if (
@@ -371,25 +384,28 @@ export async function sendWorkerLoginOtp(req, res) {
     // FAST2SMS CONFIG
     // =================================================
 
-  const apiKey = process.env.FAST2SMS_API_KEY?.trim();
-const otpId = process.env.FAST2SMS_OTP_ID?.trim();
+    const apiKey =
+      process.env.FAST2SMS_API_KEY?.trim();
 
-console.log("📱 Fast2SMS Config:", {
-apiKeyConfigured: Boolean(apiKey),
-otpIdConfigured: Boolean(otpId),
-});
+    const otpId =
+      process.env.FAST2SMS_OTP_ID?.trim();
 
-if (!apiKey || !otpId) {
-console.error(
-"❌ Fast2SMS configuration missing. Check FAST2SMS_API_KEY and FAST2SMS_OTP_ID in Render Environment Variables."
-);
+    console.log("Fast2SMS Config:", {
+      apiKeyConfigured: Boolean(apiKey),
+      otpIdConfigured: Boolean(otpId),
+    });
 
-return res.status(500).json({
-success: false,
-message: "OTP service is not configured",
-});
-}
+    if (!apiKey || !otpId) {
+      console.error(
+        "Fast2SMS configuration missing."
+      );
 
+      return res.status(500).json({
+        success: false,
+        message:
+          "OTP service is not configured",
+      });
+    }
 
     // =================================================
     // SEND OTP
@@ -466,7 +482,7 @@ export async function verifyWorkerLoginOtp(
     } = req.body;
 
     // =================================================
-    // VALIDATE MOBILE
+    // MOBILE VALIDATION
     // =================================================
 
     if (
@@ -481,7 +497,7 @@ export async function verifyWorkerLoginOtp(
     }
 
     // =================================================
-    // VALIDATE OTP
+    // OTP VALIDATION
     // =================================================
 
     if (
@@ -517,11 +533,7 @@ export async function verifyWorkerLoginOtp(
     }
 
     // =================================================
-    // PAYMENT CHECK
-    // =================================================
-    //
-    // OTP correct hone ke baad bhi unpaid worker
-    // login nahi kar sakta.
+    // PAYMENT + ACTIVE CHECK
     // =================================================
 
     if (
@@ -534,7 +546,8 @@ export async function verifyWorkerLoginOtp(
           "Your ₹250 registration payment is not completed. Please complete registration payment first.",
         paymentStatus:
           worker.paymentStatus,
-        status: worker.status,
+        status:
+          worker.status,
       });
     }
 
@@ -543,7 +556,7 @@ export async function verifyWorkerLoginOtp(
     // =================================================
 
     const apiKey =
-      process.env.FAST2SMS_API_KEY;
+      process.env.FAST2SMS_API_KEY?.trim();
 
     if (!apiKey) {
       return res.status(500).json({
@@ -595,7 +608,7 @@ export async function verifyWorkerLoginOtp(
     }
 
     // =================================================
-    // SUCCESS
+    // LOGIN SUCCESS
     // =================================================
 
     return res.status(200).json({
@@ -608,12 +621,15 @@ export async function verifyWorkerLoginOtp(
         _id: worker._id,
         name: worker.name,
         mobile: worker.mobile,
+        email: worker.email,
         state: worker.state,
         district: worker.district,
         workType: worker.workType,
         status: worker.status,
         paymentStatus:
           worker.paymentStatus,
+        verificationStatus:
+          worker.verificationStatus,
       },
     });
   } catch (error) {
@@ -642,7 +658,7 @@ export async function resendWorkerLoginOtp(
     const { mobile } = req.body;
 
     // =================================================
-    // VALIDATE MOBILE
+    // MOBILE VALIDATION
     // =================================================
 
     if (
@@ -675,7 +691,7 @@ export async function resendWorkerLoginOtp(
     }
 
     // =================================================
-    // PAYMENT CHECK
+    // PAYMENT + ACTIVE CHECK
     // =================================================
 
     if (
@@ -694,7 +710,7 @@ export async function resendWorkerLoginOtp(
     // =================================================
 
     const apiKey =
-      process.env.FAST2SMS_API_KEY;
+      process.env.FAST2SMS_API_KEY?.trim();
 
     if (!apiKey) {
       return res.status(500).json({
@@ -763,237 +779,3 @@ export async function resendWorkerLoginOtp(
   }
 }
 
-
-
-
-// =====================================================
-// ADMIN - VERIFY WORKER
-// =====================================================
-
-export async function verifyWorker(req, res) {
-  try {
-    const { id } = req.params;
-
-    const {
-      verificationStatus,
-      skillLevel,
-      verificationScore,
-      experienceYears,
-      kycVerified,
-      skillVerified,
-      adminNotes,
-    } = req.body;
-
-    // =================================================
-    // VALIDATE WORKER ID
-    // =================================================
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Worker ID required",
-      });
-    }
-
-    // =================================================
-    // VALIDATE VERIFICATION STATUS
-    // =================================================
-
-    const allowedVerificationStatus = [
-      "Pending",
-      "Under Review",
-      "Verified",
-      "Rejected",
-      "Need More Information",
-    ];
-
-    if (
-      verificationStatus &&
-      !allowedVerificationStatus.includes(
-        verificationStatus
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid verification status",
-      });
-    }
-
-    // =================================================
-    // VALIDATE SKILL LEVEL
-    // =================================================
-
-    const allowedSkillLevels = [
-      "Expert",
-      "Skilled",
-      "Semi-Skilled",
-      "Helper",
-    ];
-
-    if (
-      skillLevel &&
-      !allowedSkillLevels.includes(skillLevel)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid skill level",
-      });
-    }
-
-    // =================================================
-    // VALIDATE SCORE
-    // =================================================
-
-    if (
-      verificationScore !== undefined &&
-      (
-        Number(verificationScore) < 0 ||
-        Number(verificationScore) > 100
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Verification score must be between 0 and 100",
-      });
-    }
-
-    // =================================================
-    // FIND WORKER
-    // =================================================
-
-    const worker = await Worker.findById(id);
-
-    if (!worker) {
-      return res.status(404).json({
-        success: false,
-        message: "Worker not found",
-      });
-    }
-
-    // =================================================
-    // UPDATE VERIFICATION
-    // =================================================
-
-    if (verificationStatus !== undefined) {
-      worker.verificationStatus =
-        verificationStatus;
-    }
-
-    if (skillLevel !== undefined) {
-      worker.skillLevel = skillLevel;
-    }
-
-    if (verificationScore !== undefined) {
-      worker.verificationScore =
-        Number(verificationScore);
-    }
-
-    if (experienceYears !== undefined) {
-      worker.experienceYears =
-        Number(experienceYears);
-    }
-
-    if (kycVerified !== undefined) {
-      worker.kycVerified =
-        Boolean(kycVerified);
-    }
-
-    if (skillVerified !== undefined) {
-      worker.skillVerified =
-        Boolean(skillVerified);
-    }
-
-    if (adminNotes !== undefined) {
-      worker.adminNotes =
-        String(adminNotes).trim();
-    }
-
-    // =================================================
-    // VERIFIED DATE
-    // =================================================
-
-    if (
-      verificationStatus === "Verified"
-    ) {
-      worker.verifiedAt = new Date();
-
-      // Agar actual admin authentication middleware
-      // available hai to yahan admin ka ID/name use karenge.
-      worker.verifiedBy =
-        req.admin?.name ||
-        req.admin?.email ||
-        "Admin";
-    }
-
-    // =================================================
-    // SAVE
-    // =================================================
-
-    await worker.save();
-
-    // =================================================
-    // RESPONSE
-    // =================================================
-
-    return res.status(200).json({
-      success: true,
-      message:
-        verificationStatus === "Verified"
-          ? "Worker verified successfully"
-          : "Worker verification updated successfully",
-
-      worker: {
-        _id: worker._id,
-        name: worker.name,
-        mobile: worker.mobile,
-        state: worker.state,
-        district: worker.district,
-        workType: worker.workType,
-
-        status: worker.status,
-
-        paymentStatus:
-          worker.paymentStatus,
-
-        verificationStatus:
-          worker.verificationStatus,
-
-        skillLevel:
-          worker.skillLevel,
-
-        verificationScore:
-          worker.verificationScore,
-
-        experienceYears:
-          worker.experienceYears,
-
-        kycVerified:
-          worker.kycVerified,
-
-        skillVerified:
-          worker.skillVerified,
-
-        verifiedAt:
-          worker.verifiedAt,
-
-        verifiedBy:
-          worker.verifiedBy,
-
-        adminNotes:
-          worker.adminNotes,
-      },
-    });
-  } catch (error) {
-    console.error(
-      "Verify Worker Error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Unable to update worker verification",
-    });
-  }
-}

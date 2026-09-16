@@ -1,4 +1,3 @@
-
 import mongoose from "mongoose";
 
 const workerSchema = new mongoose.Schema(
@@ -10,6 +9,7 @@ const workerSchema = new mongoose.Schema(
     name: {
       type: String,
       trim: true,
+      default: "",
     },
 
     mobile: {
@@ -18,19 +18,30 @@ const workerSchema = new mongoose.Schema(
       index: true,
     },
 
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      default: "",
+      index: true,
+    },
+
     state: {
       type: String,
       trim: true,
+      default: "",
     },
 
     district: {
       type: String,
       trim: true,
+      default: "",
     },
 
     workType: {
       type: String,
       trim: true,
+      default: "",
     },
 
     // =====================================================
@@ -55,20 +66,18 @@ const workerSchema = new mongoose.Schema(
     // =====================================================
     // WORKER ACCOUNT STATUS
     // =====================================================
-    // This controls the worker account itself.
-    // It is separate from verification.
+    // Account status is separate from verification.
 
     status: {
       type: String,
       enum: ["Pending", "Active", "Blocked"],
       default: "Pending",
+      index: true,
     },
 
     // =====================================================
     // WORKER VERIFICATION
     // =====================================================
-    // Payment does NOT automatically make worker verified.
-    // Admin will verify the worker later.
 
     verificationStatus: {
       type: String,
@@ -76,16 +85,17 @@ const workerSchema = new mongoose.Schema(
         "Pending",
         "Under Review",
         "Verified",
-        "Rejected",
         "Need More Information",
+        "Rejected",
       ],
       default: "Pending",
+      index: true,
     },
 
     // =====================================================
     // SKILL LEVEL
     // =====================================================
-    // Admin assigns this after checking the worker.
+    // null = Not Assessed yet
 
     skillLevel: {
       type: String,
@@ -95,7 +105,7 @@ const workerSchema = new mongoose.Schema(
         "Semi-Skilled",
         "Helper",
       ],
-      default: "Helper",
+      default: null,
     },
 
     // =====================================================
@@ -111,7 +121,6 @@ const workerSchema = new mongoose.Schema(
     // =====================================================
     // VERIFICATION SCORE
     // =====================================================
-    // Admin can give a score from 0 to 100.
 
     verificationScore: {
       type: Number,
@@ -138,34 +147,37 @@ const workerSchema = new mongoose.Schema(
     // ADMIN VERIFICATION INFORMATION
     // =====================================================
 
+    adminNotes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     verifiedAt: {
       type: Date,
+      default: null,
     },
 
     verifiedBy: {
       type: String,
       trim: true,
-    },
-
-    adminNotes: {
-      type: String,
-      trim: true,
+      default: "",
     },
 
     // =====================================================
     // PAYMENT
     // =====================================================
-    // Registration/payment is independent from verification.
 
     paymentStatus: {
       type: String,
       enum: ["PENDING", "PAID", "FAILED"],
       default: "PENDING",
+      index: true,
     },
 
     paymentAmount: {
       type: Number,
-      default: 25000, // ₹250 in paise
+      default: 25000,
     },
 
     merchantOrderId: {
@@ -197,4 +209,3 @@ export const Worker = mongoose.model(
   "Worker",
   workerSchema
 );
-

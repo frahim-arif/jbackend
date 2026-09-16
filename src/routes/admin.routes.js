@@ -6,11 +6,25 @@ import { Admin } from "../models/Admin.js";
 import { Worker } from "../models/Worker.js";
 
 import { adminAuth } from "../middleware/adminAuth.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 const router = express.Router();
 
 const JWT_SECRET =
   process.env.JWT_SECRET || "SECRET_KEY";
+
+// =====================================================
+// HTML ESCAPE
+// =====================================================
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
 // =====================================================
 // ADMIN LOGIN
@@ -19,65 +33,81 @@ const JWT_SECRET =
 
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const {
+      username,
+      password,
+    } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: "Username and password are required",
+        message:
+          "Username and password are required",
       });
     }
 
-    const admin = await Admin.findOne({
-      username: username.trim(),
-    });
+    const admin =
+      await Admin.findOne({
+        username: username.trim(),
+      });
 
     if (!admin) {
       return res.status(401).json({
         success: false,
-        message: "Invalid username or password",
+        message:
+          "Invalid username or password",
       });
     }
 
     if (admin.isActive === false) {
       return res.status(403).json({
         success: false,
-        message: "Admin account is disabled",
+        message:
+          "Admin account is disabled",
       });
     }
 
-    const match = await bcrypt.compare(
-      password,
-      admin.password
-    );
+    const match =
+      await bcrypt.compare(
+        password,
+        admin.password
+      );
 
     if (!match) {
       return res.status(401).json({
         success: false,
-        message: "Invalid username or password",
+        message:
+          "Invalid username or password",
       });
     }
 
-    const token = jwt.sign(
-      {
-        id: admin._id,
-        username: admin.username,
-        role: admin.role || "admin",
-      },
-      JWT_SECRET,
-      {
-        expiresIn: "2d",
-      }
-    );
+    const token =
+      jwt.sign(
+        {
+          id: admin._id,
+          username: admin.username,
+          role:
+            admin.role ||
+            "admin",
+        },
+        JWT_SECRET,
+        {
+          expiresIn: "2d",
+        }
+      );
 
     return res.json({
       success: true,
-      message: "Admin login successful",
+      message:
+        "Admin login successful",
       token,
       admin: {
         id: admin._id,
-        username: admin.username,
-        role: admin.role || "admin",
+        username:
+          admin.username,
+        role:
+          admin.role ||
+          "admin",
       },
     });
   } catch (error) {
@@ -88,7 +118,8 @@ router.post("/login", async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Server error",
+      message:
+        "Server error",
     });
   }
 });
@@ -106,9 +137,13 @@ router.get(
       return res.json({
         success: true,
         admin: {
-          id: req.admin._id,
-          username: req.admin.username,
-          role: req.admin.role || "admin",
+          id:
+            req.admin._id,
+          username:
+            req.admin.username,
+          role:
+            req.admin.role ||
+            "admin",
         },
       });
     } catch (error) {
@@ -119,7 +154,8 @@ router.get(
 
       return res.status(500).json({
         success: false,
-        message: "Server error",
+        message:
+          "Server error",
       });
     }
   }
@@ -128,9 +164,6 @@ router.get(
 // =====================================================
 // ADMIN STATS
 // GET /admin/stats
-//
-// GLOBAL STATS
-// No state/district hard-coding
 // =====================================================
 
 router.get(
@@ -161,134 +194,116 @@ router.get(
 
         kycVerifiedWorkers,
         skillVerifiedWorkers,
-      ] = await Promise.all([
-        // ---------------------------------------------
-        // WORKERS
-        // ---------------------------------------------
+      ] =
+        await Promise.all([
+          Worker.countDocuments(),
 
-        Worker.countDocuments(),
+          Worker.countDocuments({
+            paymentStatus:
+              "PAID",
+          }),
 
-        // ---------------------------------------------
-        // PAYMENT
-        // ---------------------------------------------
+          Worker.countDocuments({
+            paymentStatus:
+              "PENDING",
+          }),
 
-        Worker.countDocuments({
-          paymentStatus: "PAID",
-        }),
+          Worker.countDocuments({
+            paymentStatus:
+              "FAILED",
+          }),
 
-        Worker.countDocuments({
-          paymentStatus: "PENDING",
-        }),
+          Worker.countDocuments({
+            status: "Active",
+          }),
 
-        Worker.countDocuments({
-          paymentStatus: "FAILED",
-        }),
+          Worker.countDocuments({
+            status: "Pending",
+          }),
 
-        // ---------------------------------------------
-        // ACCOUNT STATUS
-        // ---------------------------------------------
+          Worker.countDocuments({
+            status: "Blocked",
+          }),
 
-        Worker.countDocuments({
-          status: "Active",
-        }),
+          Worker.countDocuments({
+            verificationStatus:
+              "Pending",
+          }),
 
-        Worker.countDocuments({
-          status: "Pending",
-        }),
+          Worker.countDocuments({
+            verificationStatus:
+              "Under Review",
+          }),
 
-        Worker.countDocuments({
-          status: "Blocked",
-        }),
+          Worker.countDocuments({
+            verificationStatus:
+              "Verified",
+          }),
 
-        // ---------------------------------------------
-        // VERIFICATION
-        // ---------------------------------------------
+          Worker.countDocuments({
+            verificationStatus:
+              "Need More Information",
+          }),
 
-        Worker.countDocuments({
-          verificationStatus: "Pending",
-        }),
+          Worker.countDocuments({
+            verificationStatus:
+              "Rejected",
+          }),
 
-        Worker.countDocuments({
-          verificationStatus: "Under Review",
-        }),
+          Worker.countDocuments({
+            skillLevel:
+              "Expert",
+          }),
 
-        Worker.countDocuments({
-          verificationStatus: "Verified",
-        }),
+          Worker.countDocuments({
+            skillLevel:
+              "Skilled",
+          }),
 
-        Worker.countDocuments({
-          verificationStatus:
-            "Need More Information",
-        }),
+          Worker.countDocuments({
+            skillLevel:
+              "Semi-Skilled",
+          }),
 
-        Worker.countDocuments({
-          verificationStatus: "Rejected",
-        }),
+          Worker.countDocuments({
+            skillLevel:
+              "Helper",
+          }),
 
-        // ---------------------------------------------
-        // SKILL LEVEL
-        // ---------------------------------------------
+          Worker.countDocuments({
+            kycVerified: true,
+          }),
 
-        Worker.countDocuments({
-          skillLevel: "Expert",
-        }),
-
-        Worker.countDocuments({
-          skillLevel: "Skilled",
-        }),
-
-        Worker.countDocuments({
-          skillLevel: "Semi-Skilled",
-        }),
-
-        Worker.countDocuments({
-          skillLevel: "Helper",
-        }),
-
-        // ---------------------------------------------
-        // KYC / SKILL VERIFIED
-        // ---------------------------------------------
-
-        Worker.countDocuments({
-          kycVerified: true,
-        }),
-
-        Worker.countDocuments({
-          skillVerified: true,
-        }),
-      ]);
+          Worker.countDocuments({
+            skillVerified: true,
+          }),
+        ]);
 
       return res.json({
         success: true,
 
         stats: {
-          // Workers
           totalWorkers,
 
-          // Payment
           paidWorkers,
           pendingPayment,
           failedPayment,
 
-          // Account
           activeWorkers,
           pendingWorkers,
           blockedWorkers,
 
-          // Verification
           pendingVerification,
           underReview,
           verifiedWorkers,
           needMoreInformation,
           rejectedWorkers,
 
-          // Skills
           expertWorkers,
           skilledWorkers,
           semiSkilledWorkers,
           helperWorkers,
 
-          // Verification checks
           kycVerifiedWorkers,
           skillVerifiedWorkers,
         },
@@ -310,19 +325,7 @@ router.get(
 
 // =====================================================
 // GET ALL WORKERS
-//
 // GET /admin/workers
-//
-// Filters:
-//
-// state
-// district
-// workType
-// paymentStatus
-// status
-// verificationStatus
-// skillLevel
-// search
 // =====================================================
 
 router.get(
@@ -343,88 +346,78 @@ router.get(
 
       const filter = {};
 
-      // ---------------------------------------------
-      // STATE
-      // ---------------------------------------------
-
       if (state?.trim()) {
-        filter.state = state.trim();
+        filter.state =
+          state.trim();
       }
-
-      // ---------------------------------------------
-      // DISTRICT
-      // ---------------------------------------------
 
       if (district?.trim()) {
-        filter.district = district.trim();
+        filter.district =
+          district.trim();
       }
-
-      // ---------------------------------------------
-      // WORK TYPE
-      // ---------------------------------------------
 
       if (workType?.trim()) {
-        filter.workType = workType.trim();
+        filter.workType =
+          workType.trim();
       }
 
-      // ---------------------------------------------
-      // PAYMENT STATUS
-      // ---------------------------------------------
-
-      if (paymentStatus?.trim()) {
+      if (
+        paymentStatus?.trim()
+      ) {
         filter.paymentStatus =
-          paymentStatus.trim().toUpperCase();
+          paymentStatus
+            .trim()
+            .toUpperCase();
       }
-
-      // ---------------------------------------------
-      // ACCOUNT STATUS
-      // ---------------------------------------------
 
       if (status?.trim()) {
-        filter.status = status.trim();
+        filter.status =
+          status.trim();
       }
 
-      // ---------------------------------------------
-      // VERIFICATION STATUS
-      // ---------------------------------------------
-
-      if (verificationStatus?.trim()) {
+      if (
+        verificationStatus?.trim()
+      ) {
         filter.verificationStatus =
           verificationStatus.trim();
       }
-
-      // ---------------------------------------------
-      // SKILL LEVEL
-      // ---------------------------------------------
 
       if (skillLevel?.trim()) {
         filter.skillLevel =
           skillLevel.trim();
       }
 
-      // ---------------------------------------------
-      // SEARCH
-      // Name / Mobile / Worker ID
-      // ---------------------------------------------
-
       if (search?.trim()) {
         const searchText =
           search.trim();
 
-        const searchConditions = [
-          {
-            name: {
-              $regex: searchText,
-              $options: "i",
+        const searchConditions =
+          [
+            {
+              name: {
+                $regex:
+                  searchText,
+                $options:
+                  "i",
+              },
             },
-          },
-          {
-            mobile: {
-              $regex: searchText,
-              $options: "i",
+            {
+              mobile: {
+                $regex:
+                  searchText,
+                $options:
+                  "i",
+              },
             },
-          },
-        ];
+            {
+              email: {
+                $regex:
+                  searchText,
+                $options:
+                  "i",
+              },
+            },
+          ];
 
         if (
           /^[0-9a-fA-F]{24}$/.test(
@@ -441,11 +434,14 @@ router.get(
       }
 
       const workers =
-        await Worker.find(filter)
+        await Worker.find(
+          filter
+        )
           .select(
             [
               "name",
               "mobile",
+              "email",
               "state",
               "district",
               "workType",
@@ -481,20 +477,29 @@ router.get(
 
       return res.json({
         success: true,
-        count: workers.length,
+        count:
+          workers.length,
 
         filters: {
-          state: state || null,
-          district: district || null,
-          workType: workType || null,
+          state:
+            state || null,
+          district:
+            district || null,
+          workType:
+            workType || null,
           paymentStatus:
-            paymentStatus || null,
-          status: status || null,
+            paymentStatus ||
+            null,
+          status:
+            status || null,
           verificationStatus:
-            verificationStatus || null,
+            verificationStatus ||
+            null,
           skillLevel:
-            skillLevel || null,
-          search: search || null,
+            skillLevel ||
+            null,
+          search:
+            search || null,
         },
 
         workers,
@@ -516,7 +521,6 @@ router.get(
 
 // =====================================================
 // GET SINGLE WORKER
-//
 // GET /admin/workers/:id
 // =====================================================
 
@@ -559,7 +563,6 @@ router.get(
 
 // =====================================================
 // UPDATE WORKER ACCOUNT STATUS
-//
 // PATCH /admin/workers/:id/status
 // =====================================================
 
@@ -568,8 +571,9 @@ router.patch(
   adminAuth,
   async (req, res) => {
     try {
-      const { status } =
-        req.body;
+      const {
+        status,
+      } = req.body;
 
       const allowedStatuses = [
         "Pending",
@@ -599,7 +603,8 @@ router.patch(
           },
           {
             new: true,
-            runValidators: true,
+            runValidators:
+              true,
           }
         );
 
@@ -653,28 +658,30 @@ router.patch(
         adminNotes,
       } = req.body;
 
-      // ---------------------------------------------
+      // =================================================
       // ALLOWED VALUES
-      // ---------------------------------------------
+      // =================================================
 
-      const allowedVerificationStatuses = [
-        "Pending",
-        "Under Review",
-        "Verified",
-        "Need More Information",
-        "Rejected",
-      ];
+      const allowedVerificationStatuses =
+        [
+          "Pending",
+          "Under Review",
+          "Verified",
+          "Need More Information",
+          "Rejected",
+        ];
 
-      const allowedSkillLevels = [
-        "Expert",
-        "Skilled",
-        "Semi-Skilled",
-        "Helper",
-      ];
+      const allowedSkillLevels =
+        [
+          "Expert",
+          "Skilled",
+          "Semi-Skilled",
+          "Helper",
+        ];
 
-      // ---------------------------------------------
-      // VALIDATE VERIFICATION STATUS
-      // ---------------------------------------------
+      // =================================================
+      // VALIDATE STATUS
+      // =================================================
 
       if (
         verificationStatus !==
@@ -690,14 +697,15 @@ router.patch(
         });
       }
 
-      // ---------------------------------------------
-      // VALIDATE SKILL LEVEL
-      // ---------------------------------------------
+      // =================================================
+      // VALIDATE SKILL
+      // =================================================
 
       if (
         skillLevel !==
           undefined &&
         skillLevel !== null &&
+        skillLevel !== "" &&
         !allowedSkillLevels.includes(
           skillLevel
         )
@@ -709,9 +717,9 @@ router.patch(
         });
       }
 
-      // ---------------------------------------------
+      // =================================================
       // VALIDATE SCORE
-      // ---------------------------------------------
+      // =================================================
 
       let score;
 
@@ -719,10 +727,9 @@ router.patch(
         verificationScore !==
         undefined
       ) {
-        score =
-          Number(
-            verificationScore
-          );
+        score = Number(
+          verificationScore
+        );
 
         if (
           Number.isNaN(score) ||
@@ -737,9 +744,9 @@ router.patch(
         }
       }
 
-      // ---------------------------------------------
+      // =================================================
       // VALIDATE EXPERIENCE
-      // ---------------------------------------------
+      // =================================================
 
       let experience;
 
@@ -766,9 +773,9 @@ router.patch(
         }
       }
 
-      // ---------------------------------------------
+      // =================================================
       // FIND WORKER
-      // ---------------------------------------------
+      // =================================================
 
       const worker =
         await Worker.findById(
@@ -783,17 +790,15 @@ router.patch(
         });
       }
 
-      // ---------------------------------------------
+      // =================================================
       // BUILD UPDATE
-      // ---------------------------------------------
-
-      const updateData = {};
+      // =================================================
 
       if (
         verificationStatus !==
         undefined
       ) {
-        updateData.verificationStatus =
+        worker.verificationStatus =
           verificationStatus;
       }
 
@@ -801,15 +806,15 @@ router.patch(
         skillLevel !==
         undefined
       ) {
-        updateData.skillLevel =
-          skillLevel;
+        worker.skillLevel =
+          skillLevel || null;
       }
 
       if (
         verificationScore !==
         undefined
       ) {
-        updateData.verificationScore =
+        worker.verificationScore =
           score;
       }
 
@@ -817,7 +822,7 @@ router.patch(
         experienceYears !==
         undefined
       ) {
-        updateData.experienceYears =
+        worker.experienceYears =
           experience;
       }
 
@@ -825,7 +830,7 @@ router.patch(
         kycVerified !==
         undefined
       ) {
-        updateData.kycVerified =
+        worker.kycVerified =
           Boolean(
             kycVerified
           );
@@ -835,7 +840,7 @@ router.patch(
         skillVerified !==
         undefined
       ) {
-        updateData.skillVerified =
+        worker.skillVerified =
           Boolean(
             skillVerified
           );
@@ -845,52 +850,439 @@ router.patch(
         adminNotes !==
         undefined
       ) {
-        updateData.adminNotes =
+        worker.adminNotes =
           String(
             adminNotes
           ).trim();
       }
 
-      // ---------------------------------------------
+      // =================================================
       // VERIFIED INFORMATION
-      // ---------------------------------------------
+      // =================================================
 
       if (
         verificationStatus ===
         "Verified"
       ) {
-        updateData.verifiedAt =
+        worker.verifiedAt =
           new Date();
 
-        updateData.verifiedBy =
+        worker.verifiedBy =
           req.admin?.username ||
           "Admin";
       } else if (
         verificationStatus !==
         undefined
       ) {
-        updateData.verifiedAt =
+        worker.verifiedAt =
           null;
 
-        updateData.verifiedBy =
+        worker.verifiedBy =
           "";
       }
 
-      // ---------------------------------------------
-      // SAVE
-      // ---------------------------------------------
+      // =================================================
+      // VERIFIED STATUS VALIDATION
+      // =================================================
+      // Verified worker ke liye skill level
+      // assess hona zaroori hai.
 
-      Object.assign(
-        worker,
-        updateData
-      );
+      if (
+        worker.verificationStatus ===
+          "Verified" &&
+        !worker.skillLevel
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select a skill level before marking worker as Verified",
+        });
+      }
+
+      // =================================================
+      // SAVE DATABASE
+      // =================================================
 
       await worker.save();
 
+      // =================================================
+      // SEND EMAIL
+      // =================================================
+
+      let emailSent = false;
+
+      if (
+        worker.email &&
+        worker.email.trim()
+      ) {
+        try {
+          const safeName =
+            escapeHtml(
+              worker.name ||
+                "Worker"
+            );
+
+          const safeWorkType =
+            escapeHtml(
+              worker.workType ||
+                "-"
+            );
+
+          const safeStatus =
+            escapeHtml(
+              worker.verificationStatus ||
+                "-"
+            );
+
+          const safeSkill =
+            escapeHtml(
+              worker.skillLevel ||
+                "Not Assessed"
+            );
+
+          const safeExperience =
+            escapeHtml(
+              worker.experienceYears ??
+                0
+            );
+
+          const safeScore =
+            escapeHtml(
+              worker.verificationScore ??
+                0
+            );
+
+          const safeAdminNotes =
+            escapeHtml(
+              worker.adminNotes ||
+                ""
+            );
+
+          let subject =
+            "JobHIR Worker Verification Update";
+
+          let title =
+            "Verification Status Updated";
+
+          let message =
+            "Your JobHIR worker verification status has been updated.";
+
+          let statusColor =
+            "#92400e";
+
+          if (
+            worker.verificationStatus ===
+            "Verified"
+          ) {
+            subject =
+              "Congratulations! Your JobHIR Profile is Verified";
+
+            title =
+              "Your Profile Has Been Verified";
+
+            message =
+              "Congratulations! Your JobHIR worker profile has been successfully verified by our admin team.";
+
+            statusColor =
+              "#166534";
+          }
+
+          if (
+            worker.verificationStatus ===
+            "Under Review"
+          ) {
+            subject =
+              "JobHIR Verification Under Review";
+
+            title =
+              "Your Profile is Under Review";
+
+            message =
+              "Your JobHIR worker profile is currently under review. We will update you once the verification process is completed.";
+
+            statusColor =
+              "#1d4ed8";
+          }
+
+          if (
+            worker.verificationStatus ===
+            "Need More Information"
+          ) {
+            subject =
+              "Action Required: JobHIR Verification";
+
+            title =
+              "More Information Required";
+
+            message =
+              "We need some additional information or documentation to complete your JobHIR worker verification.";
+
+            statusColor =
+              "#b45309";
+          }
+
+          if (
+            worker.verificationStatus ===
+            "Rejected"
+          ) {
+            subject =
+              "JobHIR Verification Status Update";
+
+            title =
+              "Verification Not Approved";
+
+            message =
+              "Your JobHIR worker verification could not be approved at this time. Please review the admin note below.";
+
+            statusColor =
+              "#b91c1c";
+          }
+
+          if (
+            worker.verificationStatus ===
+            "Pending"
+          ) {
+            subject =
+              "JobHIR Verification Status: Pending";
+
+            title =
+              "Verification Pending";
+
+            message =
+              "Your JobHIR worker verification is currently pending.";
+
+            statusColor =
+              "#6b7280";
+          }
+
+          const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(subject)}</title>
+</head>
+
+<body style="
+  margin:0;
+  padding:0;
+  background:#f5f5f5;
+  font-family:Arial,Helvetica,sans-serif;
+">
+
+  <div style="
+    padding:30px 15px;
+  ">
+
+    <div style="
+      max-width:620px;
+      margin:0 auto;
+      background:#ffffff;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      overflow:hidden;
+    ">
+
+      <div style="
+        background:#111827;
+        padding:22px;
+        text-align:center;
+      ">
+        <h1 style="
+          margin:0;
+          color:#ffffff;
+          font-size:26px;
+        ">
+          JobHIR
+        </h1>
+      </div>
+
+      <div style="
+        padding:30px;
+      ">
+
+        <h2 style="
+          margin:0 0 12px;
+          color:#111827;
+        ">
+          Hello ${safeName},
+        </h2>
+
+        <h3 style="
+          margin:0 0 15px;
+          color:${statusColor};
+        ">
+          ${escapeHtml(title)}
+        </h3>
+
+        <p style="
+          color:#374151;
+          font-size:15px;
+          line-height:1.7;
+        ">
+          ${escapeHtml(message)}
+        </p>
+
+        <div style="
+          margin:25px 0;
+          padding:18px;
+          background:#f9fafb;
+          border:1px solid #e5e7eb;
+          border-radius:8px;
+        ">
+
+          <p style="margin:8px 0;">
+            <strong>Worker:</strong>
+            ${safeName}
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Work Type:</strong>
+            ${safeWorkType}
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Verification Status:</strong>
+            ${safeStatus}
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Skill Level:</strong>
+            ${safeSkill}
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Experience:</strong>
+            ${safeExperience} years
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Verification Score:</strong>
+            ${safeScore}/100
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>KYC Verified:</strong>
+            ${worker.kycVerified
+              ? "Yes"
+              : "No"}
+          </p>
+
+          <p style="margin:8px 0;">
+            <strong>Skill Verified:</strong>
+            ${worker.skillVerified
+              ? "Yes"
+              : "No"}
+          </p>
+
+        </div>
+
+        ${
+          safeAdminNotes
+            ? `
+              <div style="
+                margin:20px 0;
+                padding:18px;
+                background:#fffbeb;
+                border-left:4px solid #f59e0b;
+              ">
+
+                <strong style="
+                  color:#92400e;
+                ">
+                  Admin Note
+                </strong>
+
+                <p style="
+                  margin:8px 0 0;
+                  color:#374151;
+                  line-height:1.6;
+                ">
+                  ${safeAdminNotes}
+                </p>
+
+              </div>
+            `
+            : ""
+        }
+
+        <p style="
+          color:#6b7280;
+          font-size:14px;
+          line-height:1.6;
+        ">
+          Please keep your JobHIR registration information
+          up to date.
+        </p>
+
+        <p style="
+          color:#374151;
+          margin-top:25px;
+        ">
+          Regards,<br />
+          <strong>JobHIR Team</strong>
+        </p>
+
+      </div>
+
+      <div style="
+        padding:18px;
+        background:#f9fafb;
+        text-align:center;
+        color:#6b7280;
+        font-size:12px;
+      ">
+        This is an automated email from JobHIR.
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
+`;
+
+          await sendEmail({
+            to: worker.email,
+            subject,
+            html,
+          });
+
+          emailSent = true;
+
+          console.log(
+            "VERIFICATION EMAIL SENT:",
+            worker.email
+          );
+        } catch (emailError) {
+          console.error(
+            "VERIFICATION EMAIL ERROR:",
+            emailError
+          );
+        }
+      } else {
+        console.log(
+          "VERIFICATION EMAIL SKIPPED: Worker has no email"
+        );
+      }
+
+      // =================================================
+      // RESPONSE
+      // =================================================
+
       return res.json({
         success: true,
+
         message:
-          "Worker verification updated successfully",
+          worker.verificationStatus ===
+          "Verified"
+            ? "Worker verified successfully"
+            : "Worker verification updated successfully",
+
+        emailSent,
+
         worker,
       });
     } catch (error) {

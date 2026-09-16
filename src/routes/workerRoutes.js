@@ -1,4 +1,3 @@
-
 import express from "express";
 import multer from "multer";
 import path from "path";
@@ -8,7 +7,6 @@ import {
   registerWorker,
   getWorkers,
   getWorkerById,
-  verifyWorker,
 } from "../controllers/workerController.js";
 
 import {
@@ -24,10 +22,13 @@ export function createWorkerRouter() {
   // PHONEPE CLIENT
   // =====================================================
 
-  const phonepeClient = createPhonePeClient();
+  const phonepeClient =
+    createPhonePeClient();
 
   const workerPaymentController =
-    makeWorkerPaymentController(phonepeClient);
+    makeWorkerPaymentController(
+      phonepeClient
+    );
 
   // =====================================================
   // UPLOAD DIRECTORY
@@ -45,42 +46,50 @@ export function createWorkerRouter() {
   // MULTER CONFIGURATION
   // =====================================================
 
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, uploadDir);
-    },
+  const storage =
+    multer.diskStorage({
+      destination: (
+        req,
+        file,
+        cb
+      ) => {
+        cb(null, uploadDir);
+      },
 
-    filename: (req, file, cb) => {
-      const uniqueName =
-        Date.now() +
-        "-" +
-        Math.round(Math.random() * 1e9) +
-        path.extname(file.originalname);
+      filename: (
+        req,
+        file,
+        cb
+      ) => {
+        const uniqueName =
+          Date.now() +
+          "-" +
+          Math.round(
+            Math.random() * 1e9
+          ) +
+          path.extname(
+            file.originalname
+          );
 
-      cb(null, uniqueName);
-    },
-  });
+        cb(
+          null,
+          uniqueName
+        );
+      },
+    });
 
   const upload = multer({
     storage,
 
     limits: {
-      fileSize: 5 * 1024 * 1024, // 5 MB
+      fileSize:
+        5 * 1024 * 1024,
     },
   });
 
   // =====================================================
   // WORKER REGISTRATION
   // =====================================================
-  // Worker register karega.
-  //
-  // Registration ke baad:
-  // status = Pending
-  // paymentStatus = PENDING
-  // verificationStatus = Pending
-  //
-  // Payment complete hone ke baad worker Active hoga.
-  // Verification baad mein Admin karega.
 
   router.post(
     "/workers/register",
@@ -91,7 +100,6 @@ export function createWorkerRouter() {
   // =====================================================
   // WORKER ₹250 REGISTRATION PAYMENT
   // =====================================================
-  // One-time registration payment
 
   router.post(
     "/workers/payment/create",
@@ -110,8 +118,6 @@ export function createWorkerRouter() {
   // =====================================================
   // GET WORKER BY MERCHANT ORDER ID
   // =====================================================
-  // Payment success ke baad Success.jsx
-  // merchantOrderId se workerId recover karega.
 
   router.get(
     "/workers/payment-by-order/:merchantOrderId",
@@ -125,37 +131,6 @@ export function createWorkerRouter() {
   router.get(
     "/workers",
     getWorkers
-  );
-
-  // =====================================================
-  // ADMIN - WORKER VERIFICATION
-  // =====================================================
-  //
-  // Payment aur verification alag processes hain.
-  //
-  // Worker payment complete kar sakta hai bina
-  // verification ke.
-  //
-  // Admin baad mein worker ko verify karega.
-  //
-  // PATCH:
-  // /admin/workers/:id/verification
-  //
-  // Example body:
-  //
-  // {
-  //   "verificationStatus": "Verified",
-  //   "skillLevel": "Expert",
-  //   "verificationScore": 88,
-  //   "experienceYears": 8,
-  //   "kycVerified": true,
-  //   "skillVerified": true,
-  //   "adminNotes": "KYC and skill verified."
-  // }
-
-  router.patch(
-    "/admin/workers/:id/verification",
-    verifyWorker
   );
 
   // =====================================================
@@ -176,11 +151,11 @@ export function createWorkerRouter() {
     (req, res) => {
       return res.json({
         success: true,
-        message: "Worker route is working",
+        message:
+          "Worker route is working",
       });
     }
   );
 
   return router;
 }
-
