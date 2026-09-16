@@ -5,7 +5,7 @@ import { Worker } from "../models/Worker.js";
 // WORKER REGISTRATION PAYMENT
 // =====================================================
 
-const WORKER_REGISTRATION_AMOUNT = 25000; // ₹250 in paise
+const WORKER_REGISTRATION_AMOUNT = 500; // ₹250 in paise
 
 // =====================================================
 // REGISTER WORKER
@@ -149,7 +149,7 @@ export async function registerWorker(req, res) {
       return res.status(409).json({
         success: false,
         message:
-          "Registration already started. Please complete your ₹250 payment.",
+          "Registration already started. Please complete your ₹5 payment.",
         workerId: existingWorker._id,
         worker: {
           _id: existingWorker._id,
