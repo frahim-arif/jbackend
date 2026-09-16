@@ -1,7 +1,12 @@
+
 import mongoose from "mongoose";
 
 const workerSchema = new mongoose.Schema(
   {
+    // =====================================================
+    // BASIC WORKER INFORMATION
+    // =====================================================
+
     name: {
       type: String,
       trim: true,
@@ -28,15 +33,30 @@ const workerSchema = new mongoose.Schema(
       trim: true,
     },
 
-    kycType: String,
+    // =====================================================
+    // KYC INFORMATION
+    // =====================================================
 
-    kycNumber: String,
+    kycType: {
+      type: String,
+      trim: true,
+    },
 
-    kycDocument: String,
+    kycNumber: {
+      type: String,
+      trim: true,
+    },
+
+    kycDocument: {
+      type: String,
+      trim: true,
+    },
 
     // =====================================================
-    // WORKER STATUS
+    // WORKER ACCOUNT STATUS
     // =====================================================
+    // This controls the worker account itself.
+    // It is separate from verification.
 
     status: {
       type: String,
@@ -45,8 +65,97 @@ const workerSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // WORKER VERIFICATION
+    // =====================================================
+    // Payment does NOT automatically make worker verified.
+    // Admin will verify the worker later.
+
+    verificationStatus: {
+      type: String,
+      enum: [
+        "Pending",
+        "Under Review",
+        "Verified",
+        "Rejected",
+        "Need More Information",
+      ],
+      default: "Pending",
+    },
+
+    // =====================================================
+    // SKILL LEVEL
+    // =====================================================
+    // Admin assigns this after checking the worker.
+
+    skillLevel: {
+      type: String,
+      enum: [
+        "Expert",
+        "Skilled",
+        "Semi-Skilled",
+        "Helper",
+      ],
+      default: "Helper",
+    },
+
+    // =====================================================
+    // EXPERIENCE
+    // =====================================================
+
+    experienceYears: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    // =====================================================
+    // VERIFICATION SCORE
+    // =====================================================
+    // Admin can give a score from 0 to 100.
+
+    verificationScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+
+    // =====================================================
+    // VERIFICATION CHECKS
+    // =====================================================
+
+    kycVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    skillVerified: {
+      type: Boolean,
+      default: false,
+    },
+
+    // =====================================================
+    // ADMIN VERIFICATION INFORMATION
+    // =====================================================
+
+    verifiedAt: {
+      type: Date,
+    },
+
+    verifiedBy: {
+      type: String,
+      trim: true,
+    },
+
+    adminNotes: {
+      type: String,
+      trim: true,
+    },
+
+    // =====================================================
     // PAYMENT
     // =====================================================
+    // Registration/payment is independent from verification.
 
     paymentStatus: {
       type: String,
@@ -69,6 +178,10 @@ const workerSchema = new mongoose.Schema(
       type: Date,
     },
 
+    // =====================================================
+    // DATES
+    // =====================================================
+
     createdAt: {
       type: Date,
       default: Date.now,
@@ -84,3 +197,4 @@ export const Worker = mongoose.model(
   "Worker",
   workerSchema
 );
+

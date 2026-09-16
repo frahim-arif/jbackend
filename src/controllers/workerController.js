@@ -762,3 +762,238 @@ export async function resendWorkerLoginOtp(
     });
   }
 }
+
+
+
+
+// =====================================================
+// ADMIN - VERIFY WORKER
+// =====================================================
+
+export async function verifyWorker(req, res) {
+  try {
+    const { id } = req.params;
+
+    const {
+      verificationStatus,
+      skillLevel,
+      verificationScore,
+      experienceYears,
+      kycVerified,
+      skillVerified,
+      adminNotes,
+    } = req.body;
+
+    // =================================================
+    // VALIDATE WORKER ID
+    // =================================================
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Worker ID required",
+      });
+    }
+
+    // =================================================
+    // VALIDATE VERIFICATION STATUS
+    // =================================================
+
+    const allowedVerificationStatus = [
+      "Pending",
+      "Under Review",
+      "Verified",
+      "Rejected",
+      "Need More Information",
+    ];
+
+    if (
+      verificationStatus &&
+      !allowedVerificationStatus.includes(
+        verificationStatus
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid verification status",
+      });
+    }
+
+    // =================================================
+    // VALIDATE SKILL LEVEL
+    // =================================================
+
+    const allowedSkillLevels = [
+      "Expert",
+      "Skilled",
+      "Semi-Skilled",
+      "Helper",
+    ];
+
+    if (
+      skillLevel &&
+      !allowedSkillLevels.includes(skillLevel)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid skill level",
+      });
+    }
+
+    // =================================================
+    // VALIDATE SCORE
+    // =================================================
+
+    if (
+      verificationScore !== undefined &&
+      (
+        Number(verificationScore) < 0 ||
+        Number(verificationScore) > 100
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Verification score must be between 0 and 100",
+      });
+    }
+
+    // =================================================
+    // FIND WORKER
+    // =================================================
+
+    const worker = await Worker.findById(id);
+
+    if (!worker) {
+      return res.status(404).json({
+        success: false,
+        message: "Worker not found",
+      });
+    }
+
+    // =================================================
+    // UPDATE VERIFICATION
+    // =================================================
+
+    if (verificationStatus !== undefined) {
+      worker.verificationStatus =
+        verificationStatus;
+    }
+
+    if (skillLevel !== undefined) {
+      worker.skillLevel = skillLevel;
+    }
+
+    if (verificationScore !== undefined) {
+      worker.verificationScore =
+        Number(verificationScore);
+    }
+
+    if (experienceYears !== undefined) {
+      worker.experienceYears =
+        Number(experienceYears);
+    }
+
+    if (kycVerified !== undefined) {
+      worker.kycVerified =
+        Boolean(kycVerified);
+    }
+
+    if (skillVerified !== undefined) {
+      worker.skillVerified =
+        Boolean(skillVerified);
+    }
+
+    if (adminNotes !== undefined) {
+      worker.adminNotes =
+        String(adminNotes).trim();
+    }
+
+    // =================================================
+    // VERIFIED DATE
+    // =================================================
+
+    if (
+      verificationStatus === "Verified"
+    ) {
+      worker.verifiedAt = new Date();
+
+      // Agar actual admin authentication middleware
+      // available hai to yahan admin ka ID/name use karenge.
+      worker.verifiedBy =
+        req.admin?.name ||
+        req.admin?.email ||
+        "Admin";
+    }
+
+    // =================================================
+    // SAVE
+    // =================================================
+
+    await worker.save();
+
+    // =================================================
+    // RESPONSE
+    // =================================================
+
+    return res.status(200).json({
+      success: true,
+      message:
+        verificationStatus === "Verified"
+          ? "Worker verified successfully"
+          : "Worker verification updated successfully",
+
+      worker: {
+        _id: worker._id,
+        name: worker.name,
+        mobile: worker.mobile,
+        state: worker.state,
+        district: worker.district,
+        workType: worker.workType,
+
+        status: worker.status,
+
+        paymentStatus:
+          worker.paymentStatus,
+
+        verificationStatus:
+          worker.verificationStatus,
+
+        skillLevel:
+          worker.skillLevel,
+
+        verificationScore:
+          worker.verificationScore,
+
+        experienceYears:
+          worker.experienceYears,
+
+        kycVerified:
+          worker.kycVerified,
+
+        skillVerified:
+          worker.skillVerified,
+
+        verifiedAt:
+          worker.verifiedAt,
+
+        verifiedBy:
+          worker.verifiedBy,
+
+        adminNotes:
+          worker.adminNotes,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "Verify Worker Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to update worker verification",
+    });
+  }
+}

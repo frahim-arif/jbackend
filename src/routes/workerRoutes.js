@@ -8,6 +8,7 @@ import {
   registerWorker,
   getWorkers,
   getWorkerById,
+  verifyWorker,
 } from "../controllers/workerController.js";
 
 import {
@@ -72,8 +73,14 @@ export function createWorkerRouter() {
   // WORKER REGISTRATION
   // =====================================================
   // Worker register karega.
-  // Registration ke baad worker Pending rahega.
-  // Payment complete hone ke baad Active hoga.
+  //
+  // Registration ke baad:
+  // status = Pending
+  // paymentStatus = PENDING
+  // verificationStatus = Pending
+  //
+  // Payment complete hone ke baad worker Active hoga.
+  // Verification baad mein Admin karega.
 
   router.post(
     "/workers/register",
@@ -112,13 +119,48 @@ export function createWorkerRouter() {
   );
 
   // =====================================================
-  // WORKERS
+  // GET ALL WORKERS
   // =====================================================
 
   router.get(
     "/workers",
     getWorkers
   );
+
+  // =====================================================
+  // ADMIN - WORKER VERIFICATION
+  // =====================================================
+  //
+  // Payment aur verification alag processes hain.
+  //
+  // Worker payment complete kar sakta hai bina
+  // verification ke.
+  //
+  // Admin baad mein worker ko verify karega.
+  //
+  // PATCH:
+  // /admin/workers/:id/verification
+  //
+  // Example body:
+  //
+  // {
+  //   "verificationStatus": "Verified",
+  //   "skillLevel": "Expert",
+  //   "verificationScore": 88,
+  //   "experienceYears": 8,
+  //   "kycVerified": true,
+  //   "skillVerified": true,
+  //   "adminNotes": "KYC and skill verified."
+  // }
+
+  router.patch(
+    "/admin/workers/:id/verification",
+    verifyWorker
+  );
+
+  // =====================================================
+  // GET SINGLE WORKER
+  // =====================================================
 
   router.get(
     "/workers/:id",

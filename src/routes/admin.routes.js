@@ -128,6 +128,12 @@ router.get("/stats", adminAuth, async (req, res) => {
       blockedWorkers,
       upWorkers,
       noidaWorkers,
+      verificationPending,
+      verificationVerified,
+      verificationRejected,
+      entryLevelWorkers,
+      intermediateWorkers,
+      expertWorkers,
     ] = await Promise.all([
       Worker.countDocuments(),
 
@@ -159,19 +165,55 @@ router.get("/stats", adminAuth, async (req, res) => {
         state: "Uttar Pradesh",
         district: "Noida",
       }),
+
+      Worker.countDocuments({
+        verificationStatus: "Pending",
+      }),
+
+      Worker.countDocuments({
+        verificationStatus: "Verified",
+      }),
+
+      Worker.countDocuments({
+        verificationStatus: "Rejected",
+      }),
+
+      Worker.countDocuments({
+        skillLevel: "Entry Level",
+      }),
+
+      Worker.countDocuments({
+        skillLevel: "Intermediate",
+      }),
+
+      Worker.countDocuments({
+        skillLevel: "Expert",
+      }),
     ]);
 
     res.json({
       success: true,
+
       stats: {
         totalWorkers,
+
         paidWorkers,
         pendingPayment,
+
         activeWorkers,
         pendingWorkers,
         blockedWorkers,
+
         upWorkers,
         noidaWorkers,
+
+        verificationPending,
+        verificationVerified,
+        verificationRejected,
+
+        entryLevelWorkers,
+        intermediateWorkers,
+        expertWorkers,
       },
     });
   } catch (error) {
@@ -195,6 +237,8 @@ router.get("/stats", adminAuth, async (req, res) => {
 // ?workType=Painter
 // ?paymentStatus=PAID
 // ?status=Active
+// ?verificationStatus=Pending
+// ?skillLevel=Expert
 // ?search=rajesh
 // =====================================================
 
@@ -206,6 +250,8 @@ router.get("/workers", adminAuth, async (req, res) => {
       workType,
       paymentStatus,
       status,
+      verificationStatus,
+      skillLevel,
       search,
     } = req.query;
 
@@ -252,6 +298,22 @@ router.get("/workers", adminAuth, async (req, res) => {
     }
 
     // -----------------------------------------------
+    // VERIFICATION STATUS
+    // -----------------------------------------------
+
+    if (verificationStatus) {
+      filter.verificationStatus = verificationStatus;
+    }
+
+    // -----------------------------------------------
+    // SKILL LEVEL
+    // -----------------------------------------------
+
+    if (skillLevel) {
+      filter.skillLevel = skillLevel;
+    }
+
+    // -----------------------------------------------
     // SEARCH
     // Name / Mobile / Worker ID
     // -----------------------------------------------
@@ -286,7 +348,28 @@ router.get("/workers", adminAuth, async (req, res) => {
 
     const workers = await Worker.find(filter)
       .select(
-        "name mobile state district workType kycType kycNumber kycDocument status paymentStatus paymentAmount merchantOrderId paidAt createdAt"
+        [
+          "name",
+          "mobile",
+          "state",
+          "district",
+          "workType",
+          "kycType",
+          "kycNumber",
+          "kycDocument",
+          "status",
+          "paymentStatus",
+          "paymentAmount",
+          "merchantOrderId",
+          "paidAt",
+          "verificationStatus",
+          "skillLevel",
+          "verificationNotes",
+          "verifiedAt",
+          "verifiedBy",
+          "createdAt",
+          "updatedAt",
+        ].join(" ")
       )
       .sort({
         createdAt: -1,
@@ -295,14 +378,18 @@ router.get("/workers", adminAuth, async (req, res) => {
     res.json({
       success: true,
       count: workers.length,
+
       filters: {
         state: state || null,
         district: district || null,
         workType: workType || null,
         paymentStatus: paymentStatus || null,
         status: status || null,
+        verificationStatus: verificationStatus || null,
+        skillLevel: skillLevel || null,
         search: search || null,
       },
+
       workers,
     });
   } catch (error) {
@@ -423,6 +510,154 @@ router.patch(
       res.status(500).json({
         success: false,
         message: "Failed to update worker status",
+      });
+    }
+  }
+);
+
+// =====================================================
+// UPDATE WORKER VERIFICATION
+//
+// PATCH /admin/workers/:id/verification
+//
+// Body:
+//
+// {
+//   "verificationStatus": "Verified",
+//   "skillLevel": "Expert",
+//   "verificationNotes": "8 years experience"
+// }
+//
+// verificationStatus:
+// Pending
+// Verified
+// Rejected
+//
+// skillLevel:
+// Entry Level
+// Intermediate
+// Expert
+// =====================================================
+
+router.patch(
+  "/workers/:id/verification",
+  adminAuth,
+  async (req, res) => {
+    try {
+      const {
+        verificationStatus,
+        skillLevel,
+        verificationNotes,
+      } = req.body;
+
+      // -----------------------------------------------
+      // VALIDATION
+      // -----------------------------------------------
+
+      const allowedVerificationStatuses = [
+        "Pending",
+        "Verified",
+        "Rejected",
+      ];
+
+      const allowedSkillLevels = [
+        "Entry Level",
+        "Intermediate",
+        "Expert",
+      ];
+
+      if (
+        !allowedVerificationStatuses.includes(
+          verificationStatus
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid verification status. Use Pending, Verified or Rejected",
+        });
+      }
+
+      // Skill level is required when verifying
+      if (
+        verificationStatus === "Verified" &&
+        !allowedSkillLevels.includes(skillLevel)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Skill level is required when worker is Verified",
+        });
+      }
+
+      // -----------------------------------------------
+      // FIND WORKER
+      // -----------------------------------------------
+
+      const worker = await Worker.findById(
+        req.params.id
+      );
+
+      if (!worker) {
+        return res.status(404).json({
+          success: false,
+          message: "Worker not found",
+        });
+      }
+
+      // -----------------------------------------------
+      // ADMIN NAME
+      // -----------------------------------------------
+
+      const adminUsername =
+        req.admin?.username ||
+        req.admin?.email ||
+        "Admin";
+
+      // -----------------------------------------------
+      // UPDATE DATA
+      // -----------------------------------------------
+
+      worker.verificationStatus =
+        verificationStatus;
+
+      worker.skillLevel =
+        verificationStatus === "Verified"
+          ? skillLevel
+          : null;
+
+      worker.verificationNotes =
+        typeof verificationNotes === "string"
+          ? verificationNotes.trim()
+          : "";
+
+      if (
+        verificationStatus === "Verified"
+      ) {
+        worker.verifiedAt = new Date();
+        worker.verifiedBy = adminUsername;
+      } else {
+        worker.verifiedAt = undefined;
+        worker.verifiedBy = "";
+      }
+
+      await worker.save();
+
+      return res.json({
+        success: true,
+        message: `Worker verification changed to ${verificationStatus}`,
+        worker,
+      });
+    } catch (error) {
+      console.error(
+        "ADMIN VERIFICATION UPDATE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to update worker verification",
       });
     }
   }
