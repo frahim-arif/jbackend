@@ -177,7 +177,7 @@ const workerSchema = new mongoose.Schema(
 
     paymentAmount: {
       type: Number,
-      default: 500,
+      default: 5,
     },
 
     merchantOrderId: {

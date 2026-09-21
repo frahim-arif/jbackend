@@ -5,7 +5,7 @@ import { Worker } from "../models/Worker.js";
 // WORKER REGISTRATION PAYMENT
 // =====================================================
 
-const WORKER_REGISTRATION_AMOUNT = 500; // ₹250 in paise
+const WORKER_REGISTRATION_AMOUNT = 5; // ₹250 in paise
 
 // =====================================================
 // REGISTER WORKER
@@ -237,7 +237,7 @@ export async function registerWorker(req, res) {
       success: true,
 
       message:
-        "Registration details saved. Please complete ₹250 payment.",
+        "Registration details saved. Please complete ₹5 payment.",
 
       workerId: worker._id,
 
@@ -376,7 +376,7 @@ export async function sendWorkerLoginOtp(req, res) {
       return res.status(403).json({
         success: false,
         message:
-          "Your ₹250 registration payment is not completed. Please complete registration payment first.",
+          "Your ₹5 registration payment is not completed. Please complete registration payment first.",
       });
     }
 
