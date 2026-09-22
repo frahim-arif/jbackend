@@ -102,15 +102,20 @@ export function makeOrderController(client) {
             const job = order.jobId ? await Job.findById(order.jobId) : null
 
             await Application.create({
-              jobId: order.jobId || '',
-              jobTitle: job ? job.title : '',
-              merchantOrderId,
-              txnId: response.transactionId || null,
-              applicantName: order.customerName,
-              applicantEmail: order.email,
-              applicantPhone: order.mobileNumber,
-              amount: order.amount
-            })
+  jobId: order.jobId || '',
+  jobTitle: job ? job.title : '',
+  merchantOrderId,
+  txnId: response.transactionId || null,
+  applicantName: order.customerName,
+  applicantEmail: order.email,
+  applicantPhone: order.mobileNumber,
+  amount: order.amount,
+
+  // Worker application starts here
+  status: "Applied",
+  workStartedAt: null,
+  workCompletedAt: null,
+})
             
 
             

@@ -9,6 +9,29 @@ const applicationSchema = new mongoose.Schema({
   applicantEmail: { type: String },
   applicantPhone: { type: String, required: true },
   amount: { type: Number, required: true },
+  status: {
+  type: String,
+  enum: [
+    "Applied",
+    "Accepted",
+    "Working",
+    "Completed",
+    "Rejected",
+    "Cancelled",
+  ],
+  default: "Applied",
+  index: true,
+},
+
+workStartedAt: {
+  type: Date,
+  default: null,
+},
+
+workCompletedAt: {
+  type: Date,
+  default: null,
+},
   createdAt: { type: Date, default: Date.now }
 }, { versionKey: false })
 

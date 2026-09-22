@@ -3,10 +3,11 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-import {
-  registerWorker,
-  getWorkers,
+import { 
+  registerWorker, 
+  getWorkers, 
   getWorkerById,
+  getWorkingWorkers,
 } from "../controllers/workerController.js";
 
 import {
@@ -132,7 +133,14 @@ export function createWorkerRouter() {
     "/workers",
     getWorkers
   );
+// =====================================================
+// GET CURRENTLY WORKING WORKERS
+// =====================================================
 
+router.get(
+  "/workers/working",
+  getWorkingWorkers
+);
   // =====================================================
   // GET SINGLE WORKER
   // =====================================================

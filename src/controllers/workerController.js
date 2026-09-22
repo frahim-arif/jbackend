@@ -1,5 +1,6 @@
 
 import { Worker } from "../models/Worker.js";
+import { Application } from "../models/Application.js";
 
 // =====================================================
 // WORKER REGISTRATION PAYMENT
@@ -775,6 +776,98 @@ export async function resendWorkerLoginOtp(
       success: false,
       message:
         "Unable to resend OTP",
+    });
+  }
+}
+// =====================================================
+// GET CURRENTLY WORKING WORKERS
+// =====================================================
+
+export async function getWorkingWorkers(req, res) {
+  try {
+    // Sirf actual Working applications
+    const applications = await Application.find({
+      status: "Working",
+    }).sort({
+      workStartedAt: -1,
+    });
+
+    if (!applications.length) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        workers: [],
+      });
+    }
+
+    // Application ke phone number se registered worker find
+    const mobileNumbers = applications
+      .map((application) => application.applicantPhone)
+      .filter(Boolean);
+
+    const workers = await Worker.find({
+      mobile: { $in: mobileNumbers },
+
+      // Worker registration bhi valid honi chahiye
+      paymentStatus: "PAID",
+      status: "Active",
+    }).select(
+      "-kycNumber -email -kycDocument"
+    );
+
+    // Worker + current working application combine
+    const workingWorkers = workers.map((worker) => {
+      const application = applications.find(
+        (item) =>
+          item.applicantPhone === worker.mobile
+      );
+
+      return {
+        _id: worker._id,
+        name: worker.name,
+        mobile: worker.mobile,
+        state: worker.state,
+        district: worker.district,
+        workType: worker.workType,
+
+        verificationStatus:
+          worker.verificationStatus,
+
+        skillLevel:
+          worker.skillLevel,
+
+        experienceYears:
+          worker.experienceYears,
+
+        workStartedAt:
+          application?.workStartedAt || null,
+
+        jobId:
+          application?.jobId || null,
+
+        jobTitle:
+          application?.jobTitle || null,
+
+        applicationStatus:
+          application?.status || "Working",
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: workingWorkers.length,
+      workers: workingWorkers,
+    });
+
+  } catch (error) {
+    console.error(
+      "Get Working Workers Error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch working workers",
     });
   }
 }
