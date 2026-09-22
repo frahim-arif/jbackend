@@ -6,6 +6,7 @@ import { env } from '../config/env.js'
 import { Order } from '../models/Order.js'
 import { Application } from '../models/Application.js'
 import { Job } from '../models/Job.js'
+import { Worker } from '../models/Worker.js'
 import { sendEmail } from '../utils/sendEmail.js'
 
 export function makeOrderController(client) {
@@ -26,9 +27,56 @@ export function makeOrderController(client) {
           return res.status(400).send('Customer name required')
 
         if (!/^\d{10}$/.test(mobileNumber))
-          return res.status(400).send('Valid 10-digit mobile required')
+  return res.status(400).send('Valid 10-digit mobile required')
 
-        let job = null
+// ============================================================
+// WORKER VERIFICATION
+// Only registered + paid + active workers can apply
+// ============================================================
+
+const worker = await Worker.findOne({
+  mobile: mobileNumber,
+  paymentStatus: "PAID",
+  status: "Active",
+})
+
+if (!worker) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Only registered and verified workers can apply for jobs.",
+  })
+}
+
+// ============================================================
+// Worker name/email verification
+// ============================================================
+
+if (
+  worker.name.trim().toLowerCase() !==
+  customerName.trim().toLowerCase()
+) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Worker name does not match registered worker details.",
+  })
+}
+
+if (
+  worker.email &&
+  email &&
+  worker.email.trim().toLowerCase() !==
+  email.trim().toLowerCase()
+) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Worker email does not match registered worker details.",
+  })
+}
+
+let job = null
         if (jobId) {
           job = await Job.findById(jobId)
           if (!job) return res.status(400).send('Job not found')
