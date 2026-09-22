@@ -5,7 +5,7 @@ import { Worker } from "../models/Worker.js";
 // WORKER REGISTRATION PAYMENT
 // =====================================================
 
-const WORKER_REGISTRATION_AMOUNT = 500; // ₹250 in paise
+const WORKER_REGISTRATION_AMOUNT = 25000; // ₹250 in paise
 
 // =====================================================
 // REGISTER WORKER
