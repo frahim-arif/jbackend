@@ -13,6 +13,29 @@ const router = express.Router();
 const JWT_SECRET =
   process.env.JWT_SECRET || "SECRET_KEY";
 
+
+  const globalAdminOnly = (req, res, next) => {
+  if (req.admin?.role === "dimapur_admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Global admin access only",
+    });
+  }
+
+  next();
+};
+
+const dimapurAdminOnly = (req, res, next) => {
+  if (req.admin?.role !== "dimapur_admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Dimapur admin access only",
+    });
+  }
+
+  next();
+};
+
 // =====================================================
 // HTML ESCAPE
 // =====================================================
@@ -169,6 +192,7 @@ router.get(
 router.get(
   "/stats",
   adminAuth,
+  globalAdminOnly,
   async (req, res) => {
     try {
       const [
@@ -331,6 +355,7 @@ router.get(
 router.get(
   "/workers",
   adminAuth,
+  globalAdminOnly,
   async (req, res) => {
     try {
       const {
@@ -1295,6 +1320,291 @@ router.patch(
         success: false,
         message:
           "Failed to update worker verification",
+      });
+    }
+  }
+);
+
+router.get(
+  "/dimapur/stats",
+  adminAuth,
+  dimapurAdminOnly,
+  async (req, res) => {
+    try {
+      const filter = {
+        state: "Nagaland",
+        district: "Dimapur",
+      };
+
+      const [
+        totalWorkers,
+        activeWorkers,
+        pendingWorkers,
+        blockedWorkers,
+        paidWorkers,
+        pendingPayment,
+        failedPayment,
+        pendingVerification,
+        underReview,
+        verifiedWorkers,
+        rejectedWorkers,
+        expertWorkers,
+        skilledWorkers,
+        semiSkilledWorkers,
+        helperWorkers,
+        kycVerifiedWorkers,
+        skillVerifiedWorkers,
+      ] = await Promise.all([
+        Worker.countDocuments(filter),
+
+        Worker.countDocuments({
+          ...filter,
+          status: "Active",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          status: "Pending",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          status: "Blocked",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          paymentStatus: "PAID",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          paymentStatus: "PENDING",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          paymentStatus: "FAILED",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          verificationStatus: "Pending",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          verificationStatus: "Under Review",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          verificationStatus: "Verified",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          verificationStatus: "Rejected",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          skillLevel: "Expert",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          skillLevel: "Skilled",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          skillLevel: "Semi-Skilled",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          skillLevel: "Helper",
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          kycVerified: true,
+        }),
+
+        Worker.countDocuments({
+          ...filter,
+          skillVerified: true,
+        }),
+      ]);
+
+      return res.json({
+        success: true,
+
+        location: {
+          state: "Nagaland",
+          district: "Dimapur",
+        },
+
+        stats: {
+          totalWorkers,
+          activeWorkers,
+          pendingWorkers,
+          blockedWorkers,
+
+          paidWorkers,
+          pendingPayment,
+          failedPayment,
+
+          pendingVerification,
+          underReview,
+          verifiedWorkers,
+          rejectedWorkers,
+
+          expertWorkers,
+          skilledWorkers,
+          semiSkilledWorkers,
+          helperWorkers,
+
+          kycVerifiedWorkers,
+          skillVerifiedWorkers,
+        },
+      });
+    } catch (error) {
+      console.error("DIMAPUR DASHBOARD ERROR:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load Dimapur dashboard",
+      });
+    }
+  }
+);
+
+router.get(
+  "/dimapur/workers",
+  adminAuth,
+  dimapurAdminOnly,
+  async (req, res) => {
+    try {
+      const {
+        workType,
+        paymentStatus,
+        status,
+        verificationStatus,
+        skillLevel,
+        search,
+      } = req.query;
+
+      const filter = {
+        state: "Nagaland",
+        district: "Dimapur",
+      };
+
+      if (workType?.trim()) {
+        filter.workType = workType.trim();
+      }
+
+      if (paymentStatus?.trim()) {
+        filter.paymentStatus = paymentStatus.trim().toUpperCase();
+      }
+
+      if (status?.trim()) {
+        filter.status = status.trim();
+      }
+
+      if (verificationStatus?.trim()) {
+        filter.verificationStatus = verificationStatus.trim();
+      }
+
+      if (skillLevel?.trim()) {
+        filter.skillLevel = skillLevel.trim();
+      }
+
+      if (search?.trim()) {
+        const searchText = search.trim();
+
+        filter.$or = [
+          {
+            name: {
+              $regex: searchText,
+              $options: "i",
+            },
+          },
+          {
+            mobile: {
+              $regex: searchText,
+              $options: "i",
+            },
+          },
+          {
+            email: {
+              $regex: searchText,
+              $options: "i",
+            },
+          },
+        ];
+      }
+
+      const workers = await Worker.find(filter)
+        .select(
+          [
+            "name",
+            "mobile",
+            "email",
+            "state",
+            "district",
+            "workType",
+
+            "kycType",
+            "kycNumber",
+            "kycDocument",
+
+            "status",
+
+            "paymentStatus",
+            "paymentAmount",
+            "merchantOrderId",
+            "paidAt",
+
+            "verificationStatus",
+            "skillLevel",
+            "verificationScore",
+            "experienceYears",
+
+            "kycVerified",
+            "skillVerified",
+
+            "adminNotes",
+            "verifiedAt",
+            "verifiedBy",
+
+            "createdAt",
+            "updatedAt",
+          ].join(" ")
+        )
+        .sort({
+          createdAt: -1,
+        });
+
+      return res.json({
+        success: true,
+
+        location: {
+          state: "Nagaland",
+          district: "Dimapur",
+        },
+
+        count: workers.length,
+
+        workers,
+      });
+    } catch (error) {
+      console.error("DIMAPUR WORKERS ERROR:", error);
+
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load Dimapur workers",
       });
     }
   }
