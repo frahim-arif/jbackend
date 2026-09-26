@@ -2,12 +2,15 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { Admin } from "./src/models/Admin.js";
+import { env } from "./src/config/env.js";
 
 dotenv.config();
 
 const createDimapurAdmin = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(env.mongoUri);
+
+    console.log("MongoDB connected.");
 
     const username = "dimapuradmin";
     const password = "Dimapur@123";
