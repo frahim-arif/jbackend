@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
-import { Admin } from "./models/Admin.js";
+import { Admin } from "./src/models/Admin.js";
 
 dotenv.config();
 
