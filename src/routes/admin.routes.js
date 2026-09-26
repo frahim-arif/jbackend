@@ -10,8 +10,12 @@ import { sendEmail } from "../utils/sendEmail.js";
 
 const router = express.Router();
 
+
+
 const JWT_SECRET =
   process.env.JWT_SECRET || "SECRET_KEY";
+
+  
 
 
   const globalAdminOnly = (req, res, next) => {
@@ -155,6 +159,7 @@ router.post("/login", async (req, res) => {
 router.get(
   "/me",
   adminAuth,
+   globalAdminOnly,
   async (req, res) => {
     try {
       return res.json({
@@ -552,6 +557,7 @@ router.get(
 router.get(
   "/workers/:id",
   adminAuth,
+   globalAdminOnly,
   async (req, res) => {
     try {
       const worker =
@@ -594,6 +600,7 @@ router.get(
 router.patch(
   "/workers/:id/status",
   adminAuth,
+   globalAdminOnly,
   async (req, res) => {
     try {
       const {
@@ -671,6 +678,7 @@ router.patch(
 router.patch(
   "/workers/:id/verification",
   adminAuth,
+   globalAdminOnly,
   async (req, res) => {
     try {
       const {
