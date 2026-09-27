@@ -2238,6 +2238,45 @@ router.get(
           })
         );
 
+
+        // =====================================================
+// RECENT CLIENT PAYMENTS
+// =====================================================
+
+const recentPayments = await ClientPayment.find({})
+  .select(
+    [
+      "jobId",
+      "jobTitle",
+
+      "workerId",
+      "workerName",
+
+      "clientName",
+      "clientPhone",
+      "clientEmail",
+
+      "amount",
+      "paymentMethod",
+      "utrNumber",
+      "paymentStatus",
+
+      "commissionRate",
+      "commissionAmount",
+      "workerAmount",
+
+      "workerPayoutStatus",
+      "workerPaidAt",
+
+      "verifiedAt",
+      "createdAt",
+    ].join(" ")
+  )
+  .sort({
+    createdAt: -1,
+  })
+  .limit(20)
+  .lean();
       // =================================================
       // FINAL RESPONSE
       // =================================================
