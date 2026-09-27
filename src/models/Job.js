@@ -54,6 +54,28 @@ const jobSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // ASSIGNED WORKER
+    // =====================================================
+
+    workerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Worker",
+      default: null,
+      index: true,
+    },
+
+    workerName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    workerAssignedAt: {
+      type: Date,
+      default: null,
+    },
+
+    // =====================================================
     // EMPLOYER JOB LOCATION
     // =====================================================
 
@@ -107,6 +129,9 @@ const jobSchema = new mongoose.Schema(
   {
     versionKey: false,
   }
+
+
+  
 );
 
 export const Job = mongoose.model("Job", jobSchema);
