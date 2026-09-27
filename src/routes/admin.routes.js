@@ -1682,9 +1682,7 @@ router.get(
       );
 
       const dimapurJobIdStrings =
-        dimapurJobIds.map((id) =>
-          String(id)
-        );
+        dimapurJobIds.map((id) => String(id));
 
       // =================================================
       // JOB COUNTS
@@ -1700,7 +1698,7 @@ router.get(
         // Total Dimapur jobs
         Job.countDocuments(jobFilter),
 
-        // Jobs having worker assigned
+        // Assigned Dimapur jobs
         Job.countDocuments({
           ...jobFilter,
           workerId: {
@@ -1708,7 +1706,7 @@ router.get(
           },
         }),
 
-        // Total value of Dimapur jobs
+        // Total Dimapur job value
         Job.aggregate([
           {
             $match: jobFilter,
@@ -1718,17 +1716,14 @@ router.get(
               _id: null,
               total: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
             },
           },
         ]),
 
-        // Applications currently Working
+        // Working applications
         Application.countDocuments({
           jobId: {
             $in: dimapurJobIdStrings,
@@ -1736,7 +1731,7 @@ router.get(
           status: "Working",
         }),
 
-        // Applications Completed
+        // Completed applications
         Application.countDocuments({
           jobId: {
             $in: dimapurJobIdStrings,
@@ -1748,8 +1743,6 @@ router.get(
       // =================================================
       // VERIFIED PAYMENT BASE
       // =================================================
-      // Sirf VERIFIED client payments revenue mein count
-      // honge.
 
       const paymentBaseMatch = {
         paymentStatus: "VERIFIED",
@@ -1788,10 +1781,7 @@ router.get(
 
               totalPayment: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
 
@@ -1856,10 +1846,7 @@ router.get(
 
               payment: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
 
@@ -1924,10 +1911,7 @@ router.get(
 
               payment: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
 
@@ -1991,10 +1975,7 @@ router.get(
 
               amount: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
             },
@@ -2098,10 +2079,7 @@ router.get(
 
               payment: {
                 $sum: {
-                  $ifNull: [
-                    "$amount",
-                    0,
-                  ],
+                  $ifNull: ["$amount", 0],
                 },
               },
 
@@ -2132,6 +2110,52 @@ router.get(
             },
           },
         ]);
+
+      // =================================================
+      // RECENT CLIENT PAYMENTS
+      // DIMAPUR ONLY
+      // =================================================
+
+      const recentPayments =
+        await ClientPayment.find({
+          jobId: {
+            $in: dimapurJobIds,
+          },
+        })
+          .select(
+            [
+              "jobId",
+              "jobTitle",
+
+              "workerId",
+              "workerName",
+
+              "clientName",
+              "clientPhone",
+              "clientEmail",
+
+              "amount",
+              "paymentMethod",
+              "utrNumber",
+              "paymentStatus",
+
+              "commissionRate",
+              "commissionAmount",
+              "workerAmount",
+
+              "workerPayoutStatus",
+              "workerPaidAt",
+
+              "verifiedAt",
+              "verifiedBy",
+              "createdAt",
+            ].join(" ")
+          )
+          .sort({
+            createdAt: -1,
+          })
+          .limit(20)
+          .lean();
 
       // =================================================
       // FORMAT TOTALS
@@ -2170,8 +2194,7 @@ router.get(
 
       const workerPaid =
         payoutResult.find(
-          (item) =>
-            item._id === "PAID"
+          (item) => item._id === "PAID"
         ) || {
           amount: 0,
           count: 0,
@@ -2183,8 +2206,7 @@ router.get(
 
       const workerPending =
         payoutResult.find(
-          (item) =>
-            item._id === "PENDING"
+          (item) => item._id === "PENDING"
         ) || {
           amount: 0,
           count: 0,
@@ -2216,11 +2238,9 @@ router.get(
       const formattedMonthlyBreakdown =
         monthlyBreakdown.map(
           (item) => ({
-            year:
-              item._id.year,
+            year: item._id.year,
 
-            month:
-              item._id.month,
+            month: item._id.month,
 
             monthName:
               monthNames[
@@ -2238,45 +2258,6 @@ router.get(
           })
         );
 
-
-        // =====================================================
-// RECENT CLIENT PAYMENTS
-// =====================================================
-
-const recentPayments = await ClientPayment.find({})
-  .select(
-    [
-      "jobId",
-      "jobTitle",
-
-      "workerId",
-      "workerName",
-
-      "clientName",
-      "clientPhone",
-      "clientEmail",
-
-      "amount",
-      "paymentMethod",
-      "utrNumber",
-      "paymentStatus",
-
-      "commissionRate",
-      "commissionAmount",
-      "workerAmount",
-
-      "workerPayoutStatus",
-      "workerPaidAt",
-
-      "verifiedAt",
-      "createdAt",
-    ].join(" ")
-  )
-  .sort({
-    createdAt: -1,
-  })
-  .limit(20)
-  .lean();
       // =================================================
       // FINAL RESPONSE
       // =================================================
@@ -2303,8 +2284,7 @@ const recentPayments = await ClientPayment.find({})
           completedJobs,
 
           totalJobValue:
-            totalJobValue[0]
-              ?.total || 0,
+            totalJobValue[0]?.total || 0,
         },
 
         // =================================================
@@ -2384,6 +2364,12 @@ const recentPayments = await ClientPayment.find({})
 
         monthlyBreakdown:
           formattedMonthlyBreakdown,
+
+        // =================================================
+        // RECENT QR CLIENT PAYMENTS
+        // =================================================
+
+        recentPayments,
       });
     } catch (error) {
       console.error(
@@ -2393,6 +2379,7 @@ const recentPayments = await ClientPayment.find({})
 
       return res.status(500).json({
         success: false,
+
         message:
           "Failed to load Dimapur revenue",
       });
