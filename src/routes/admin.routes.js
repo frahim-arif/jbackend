@@ -2361,6 +2361,625 @@ router.get(
   }
 );
 
+// =====================================================
+// GLOBAL WORK + REVENUE
+// GET /admin/revenue
+// =====================================================
 
+router.get(
+  "/revenue",
+  adminAuth,
+  globalAdminOnly,
+  async (req, res) => {
+    try {
+      // =================================================
+      // DATE RANGE
+      // =================================================
+
+      const now = new Date();
+
+      const startOfMonth = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        1
+      );
+
+      const startOfYear = new Date(
+        now.getFullYear(),
+        0,
+        1
+      );
+
+      // =================================================
+      // GET ALL JOB IDS
+      // =================================================
+
+      const allJobs = await Job.find({})
+        .select("_id")
+        .lean();
+
+      const jobIds = allJobs.map(
+        (job) => job._id
+      );
+
+      const jobIdStrings = jobIds.map(
+        (id) => String(id)
+      );
+
+      // =================================================
+      // JOB COUNTS
+      // =================================================
+
+      const [
+        totalJobs,
+        assignedJobs,
+        totalJobValue,
+        workingJobIds,
+        completedJobIds,
+      ] = await Promise.all([
+        // Total jobs
+        Job.countDocuments(),
+
+        // Jobs having worker assigned
+        Job.countDocuments({
+          workerId: {
+            $ne: null,
+          },
+        }),
+
+        // Total job value
+        Job.aggregate([
+          {
+            $group: {
+              _id: null,
+
+              total: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]),
+
+        // Working unique jobs
+        Application.distinct(
+          "jobId",
+          {
+            jobId: {
+              $in: jobIdStrings,
+            },
+            status: "Working",
+          }
+        ),
+
+        // Completed unique jobs
+        Application.distinct(
+          "jobId",
+          {
+            jobId: {
+              $in: jobIdStrings,
+            },
+            status: "Completed",
+          }
+        ),
+      ]);
+
+      // =================================================
+      // VERIFIED PAYMENT BASE
+      // =================================================
+
+      const paymentBaseMatch = {
+        paymentStatus: "VERIFIED",
+      };
+
+      // =================================================
+      // TOTAL VERIFIED CLIENT PAYMENT
+      // =================================================
+
+      const totalPaymentResult =
+        await ClientPayment.aggregate([
+          {
+            $match:
+              paymentBaseMatch,
+          },
+
+          {
+            $group: {
+              _id: null,
+
+              totalPayment: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+
+              totalCommission: {
+                $sum: {
+                  $ifNull: [
+                    "$commissionAmount",
+                    0,
+                  ],
+                },
+              },
+
+              totalWorkerAmount: {
+                $sum: {
+                  $ifNull: [
+                    "$workerAmount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]);
+
+      // =================================================
+      // THIS MONTH
+      // =================================================
+
+      const monthlyResult =
+        await ClientPayment.aggregate([
+          {
+            $match: {
+              ...paymentBaseMatch,
+
+              createdAt: {
+                $gte: startOfMonth,
+                $lte: now,
+              },
+            },
+          },
+
+          {
+            $group: {
+              _id: null,
+
+              payment: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+
+              commission: {
+                $sum: {
+                  $ifNull: [
+                    "$commissionAmount",
+                    0,
+                  ],
+                },
+              },
+
+              workerAmount: {
+                $sum: {
+                  $ifNull: [
+                    "$workerAmount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]);
+
+      // =================================================
+      // THIS YEAR
+      // =================================================
+
+      const yearlyResult =
+        await ClientPayment.aggregate([
+          {
+            $match: {
+              ...paymentBaseMatch,
+
+              createdAt: {
+                $gte: startOfYear,
+                $lte: now,
+              },
+            },
+          },
+
+          {
+            $group: {
+              _id: null,
+
+              payment: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+
+              commission: {
+                $sum: {
+                  $ifNull: [
+                    "$commissionAmount",
+                    0,
+                  ],
+                },
+              },
+
+              workerAmount: {
+                $sum: {
+                  $ifNull: [
+                    "$workerAmount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]);
+
+      // =================================================
+      // PENDING CLIENT PAYMENTS
+      // =================================================
+
+      const pendingPaymentResult =
+        await ClientPayment.aggregate([
+          {
+            $match: {
+              paymentStatus:
+                "PENDING",
+            },
+          },
+
+          {
+            $group: {
+              _id: null,
+
+              count: {
+                $sum: 1,
+              },
+
+              amount: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+        ]);
+
+      // =================================================
+      // WORKER PAYOUT
+      // =================================================
+
+      const payoutResult =
+        await ClientPayment.aggregate([
+          {
+            $match:
+              paymentBaseMatch,
+          },
+
+          {
+            $group: {
+              _id:
+                "$workerPayoutStatus",
+
+              amount: {
+                $sum: {
+                  $ifNull: [
+                    "$workerAmount",
+                    0,
+                  ],
+                },
+              },
+
+              count: {
+                $sum: 1,
+              },
+            },
+          },
+        ]);
+
+      // =================================================
+      // MONTHLY BREAKDOWN
+      // =================================================
+
+      const monthlyBreakdown =
+        await ClientPayment.aggregate([
+          {
+            $match: {
+              paymentStatus:
+                "VERIFIED",
+
+              createdAt: {
+                $gte: startOfYear,
+                $lte: now,
+              },
+            },
+          },
+
+          {
+            $group: {
+              _id: {
+                year: {
+                  $year:
+                    "$createdAt",
+                },
+
+                month: {
+                  $month:
+                    "$createdAt",
+                },
+              },
+
+              payment: {
+                $sum: {
+                  $ifNull: [
+                    "$amount",
+                    0,
+                  ],
+                },
+              },
+
+              commission: {
+                $sum: {
+                  $ifNull: [
+                    "$commissionAmount",
+                    0,
+                  ],
+                },
+              },
+
+              workerAmount: {
+                $sum: {
+                  $ifNull: [
+                    "$workerAmount",
+                    0,
+                  ],
+                },
+              },
+            },
+          },
+
+          {
+            $sort: {
+              "_id.year": 1,
+              "_id.month": 1,
+            },
+          },
+        ]);
+
+      // =================================================
+      // FORMAT TOTALS
+      // =================================================
+
+      const totalPayment =
+        totalPaymentResult[0] || {
+          totalPayment: 0,
+          totalCommission: 0,
+          totalWorkerAmount: 0,
+        };
+
+      const thisMonth =
+        monthlyResult[0] || {
+          payment: 0,
+          commission: 0,
+          workerAmount: 0,
+        };
+
+      const thisYear =
+        yearlyResult[0] || {
+          payment: 0,
+          commission: 0,
+          workerAmount: 0,
+        };
+
+      const pendingPayment =
+        pendingPaymentResult[0] || {
+          count: 0,
+          amount: 0,
+        };
+
+      // =================================================
+      // WORKER PAID
+      // =================================================
+
+      const workerPaid =
+        payoutResult.find(
+          (item) =>
+            item._id === "PAID"
+        ) || {
+          amount: 0,
+          count: 0,
+        };
+
+      // =================================================
+      // WORKER PENDING
+      // =================================================
+
+      const workerPending =
+        payoutResult.find(
+          (item) =>
+            item._id === "PENDING"
+        ) || {
+          amount: 0,
+          count: 0,
+        };
+
+      // =================================================
+      // MONTH NAMES
+      // =================================================
+
+      const monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
+
+      // =================================================
+      // FORMAT MONTHLY REPORT
+      // =================================================
+
+      const formattedMonthlyBreakdown =
+        monthlyBreakdown.map(
+          (item) => ({
+            year:
+              item._id.year,
+
+            month:
+              item._id.month,
+
+            monthName:
+              monthNames[
+                item._id.month - 1
+              ],
+
+            payment:
+              item.payment || 0,
+
+            commission:
+              item.commission || 0,
+
+            workerAmount:
+              item.workerAmount || 0,
+          })
+        );
+
+      // =================================================
+      // FINAL RESPONSE
+      // =================================================
+
+      return res.json({
+        success: true,
+
+        // =================================================
+        // JOBS
+        // =================================================
+
+        jobs: {
+          totalJobs,
+
+          assignedJobs,
+
+          workingJobs:
+            workingJobIds.length,
+
+          completedJobs:
+            completedJobIds.length,
+
+          totalJobValue:
+            totalJobValue[0]
+              ?.total || 0,
+        },
+
+        // =================================================
+        // CLIENT PAYMENT
+        // =================================================
+
+        payment: {
+          total:
+            totalPayment.totalPayment,
+
+          thisMonth:
+            thisMonth.payment,
+
+          thisYear:
+            thisYear.payment,
+
+          pending:
+            pendingPayment.amount,
+
+          pendingCount:
+            pendingPayment.count,
+        },
+
+        // =================================================
+        // JOBHIR COMMISSION
+        // =================================================
+
+        commission: {
+          rate: 10,
+
+          total:
+            totalPayment.totalCommission,
+
+          thisMonth:
+            thisMonth.commission,
+
+          thisYear:
+            thisYear.commission,
+        },
+
+        // =================================================
+        // WORKER SHARE
+        // =================================================
+
+        workerShare: {
+          total:
+            totalPayment.totalWorkerAmount,
+
+          thisMonth:
+            thisMonth.workerAmount,
+
+          thisYear:
+            thisYear.workerAmount,
+        },
+
+        // =================================================
+        // WORKER PAYOUT
+        // =================================================
+
+        workerPayout: {
+          paid:
+            workerPaid.amount,
+
+          paidCount:
+            workerPaid.count,
+
+          pending:
+            workerPending.amount,
+
+          pendingCount:
+            workerPending.count,
+        },
+
+        // =================================================
+        // MONTHLY REPORT
+        // =================================================
+
+        monthlyBreakdown:
+          formattedMonthlyBreakdown,
+      });
+    } catch (error) {
+      console.error(
+        "GLOBAL REVENUE ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to load global revenue",
+      });
+    }
+  }
+);
 
 export default router;
